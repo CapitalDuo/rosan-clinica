@@ -66,6 +66,31 @@ function eventPosition(ev: AgendaEvento) {
   }
 }
 
+function overlaps(a: AgendaEvento, b: AgendaEvento) {
+  return a.hora_fim > b.hora_inicio && a.hora_inicio < b.hora_fim
+}
+
+// For each event, compute its column index and the total columns of its overlap cluster.
+function layoutDay(events: AgendaEvento[]): Map<string, { col: number; total: number }> {
+  const sorted = [...events].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
+  const placed: { ev: AgendaEvento; col: number }[] = []
+
+  for (const ev of sorted) {
+    const usedCols = new Set(placed.filter((p) => overlaps(p.ev, ev)).map((p) => p.col))
+    let col = 0
+    while (usedCols.has(col)) col++
+    placed.push({ ev, col })
+  }
+
+  const layout = new Map<string, { col: number; total: number }>()
+  for (const p of placed) {
+    const cluster = placed.filter((q) => overlaps(q.ev, p.ev))
+    const maxCol = Math.max(...cluster.map((q) => q.col))
+    layout.set(p.ev.id, { col: p.col, total: maxCol + 1 })
+  }
+  return layout
+}
+
 function hexToBg(hex: string | null, fallback = '#7aa6d6'): string {
   const color = hex ?? fallback
   return `${color}26` // ~15% opacity
@@ -147,6 +172,7 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
           {days.map((d, dayIdx) => {
             const iso = d.toISOString().slice(0, 10)
             const dayEvents = eventosByDay[iso] ?? []
+            const layout = layoutDay(dayEvents)
             return (
               <div key={dayIdx} className="relative border-l border-border">
                 {HOURS.map((h) => (
@@ -160,13 +186,18 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
                   const { top, height } = eventPosition(ev)
                   const bg = hexToBg(ev.tipo_cor)
                   const border = statusBorder[ev.status] ?? '#7aa6d6'
+                  const slot = layout.get(ev.id) ?? { col: 0, total: 1 }
+                  const widthPct = 100 / slot.total
+                  const leftPct = slot.col * widthPct
                   return (
                     <div
                       key={ev.id}
-                      className="absolute left-1 right-1 rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md transition-shadow"
+                      className="absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md transition-shadow"
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
+                        left: `calc(${leftPct}% + 2px)`,
+                        width: `calc(${widthPct}% - 4px)`,
                         background: bg,
                         borderLeft: `3px solid ${border}`,
                       }}

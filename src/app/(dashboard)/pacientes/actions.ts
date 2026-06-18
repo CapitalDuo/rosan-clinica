@@ -70,3 +70,46 @@ export async function createPacienteAction(formData: FormData) {
   revalidatePath('/pacientes')
   redirect('/pacientes')
 }
+
+export async function updatePacienteAction(id: string, formData: FormData) {
+  const nome = String(formData.get('nome') ?? '').trim()
+  const cpf = String(formData.get('cpf') ?? '').trim()
+  const data_nascimento = String(formData.get('data_nascimento') ?? '').trim()
+  const telefone = String(formData.get('telefone') ?? '').trim()
+  const whatsapp = String(formData.get('whatsapp') ?? '').trim()
+  const email = String(formData.get('email') ?? '').trim()
+  const endereco = String(formData.get('endereco') ?? '').trim()
+  const observacoes = String(formData.get('observacoes') ?? '').trim()
+  const plano_id_raw = String(formData.get('plano_id') ?? '')
+  const valor_plano_raw = String(formData.get('valor_plano') ?? '').trim()
+  const status = String(formData.get('status') ?? 'ativo')
+
+  if (!nome) return { ok: false as const, error: 'Nome é obrigatório' }
+
+  const supabase = await createClient()
+  const valor = valor_plano_raw ? Number(valor_plano_raw.replace(',', '.')) : null
+
+  const { error } = await supabase
+    .from('pacientes')
+    .update({
+      nome,
+      cpf: cpf || null,
+      data_nascimento: data_nascimento || null,
+      telefone: telefone || null,
+      whatsapp: whatsapp || null,
+      email: email || null,
+      endereco: endereco || null,
+      observacoes: observacoes || null,
+      plano_id: plano_id_raw && plano_id_raw !== 'none' ? plano_id_raw : null,
+      valor_plano: valor && !Number.isNaN(valor) ? valor : null,
+      iniciais: iniciais(nome),
+      status,
+    })
+    .eq('id', id)
+
+  if (error) return { ok: false as const, error: error.message }
+
+  revalidatePath('/pacientes')
+  revalidatePath(`/pacientes/${id}/editar`)
+  redirect('/pacientes')
+}

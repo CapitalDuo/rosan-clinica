@@ -45,8 +45,9 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
 
   const today = todayISO()
+  const nowTime = new Date().toTimeString().slice(0, 8)
 
-  const [{ data: prof }, { data: kpis }, { data: hoje }, { data: proximos }, { data: proxima }] = await Promise.all([
+  const [{ data: prof }, { data: kpis }, { data: hoje }, { data: proximos }, { data: candidates }] = await Promise.all([
     supabase.from('profissionais').select('nome').eq('user_id', user.id).maybeSingle(),
     supabase.from('v_dashboard_kpis').select('*').maybeSingle(),
     supabase
@@ -63,14 +64,18 @@ export default async function DashboardPage() {
       .limit(5),
     supabase
       .from('v_agenda')
-      .select('hora_inicio, paciente_nome')
+      .select('data, hora_inicio, paciente_nome')
       .gte('data', today)
       .in('status', ['agendado', 'confirmado'])
       .order('data', { ascending: true })
       .order('hora_inicio', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
+      .limit(20),
   ])
+
+  // Pick the first appointment that is truly in the future (excludes today's already-passed slots)
+  const proxima = candidates?.find(
+    (c) => (c.data ?? '') > today || ((c.data ?? '') === today && (c.hora_inicio ?? '') >= nowTime),
+  ) ?? null
 
   const firstName = prof?.nome?.split(' ').slice(0, 2).join(' ') ?? 'Doutor(a)'
 
