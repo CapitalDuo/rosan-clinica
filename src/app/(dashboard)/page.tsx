@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/kpi-card'
@@ -80,9 +81,12 @@ export default async function DashboardPage() {
           <h1 className="font-playfair text-[28px] font-extrabold tracking-tight">{greeting()}, {firstName}</h1>
           <p className="text-sm text-muted mt-0.5">Aqui está o resumo da sua agenda e atendimentos de hoje.</p>
         </div>
-        <button className="inline-flex items-center gap-2 px-6 py-3 bg-text text-white rounded-[10px] text-sm font-semibold hover:bg-[#333] transition-all hover:-translate-y-px hover:shadow-lg cursor-pointer">
+        <Link
+          href="/agenda/novo"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-text text-white rounded-[10px] text-sm font-semibold hover:bg-[#333] transition-all hover:-translate-y-px hover:shadow-lg cursor-pointer"
+        >
           + Nova consulta
-        </button>
+        </Link>
       </div>
 
       <div className="px-10 pt-7 pb-10">
