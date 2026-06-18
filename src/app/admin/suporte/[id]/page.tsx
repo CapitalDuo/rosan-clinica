@@ -13,19 +13,22 @@ export default async function AdminTicketPage({
 
   const { data: ticket } = await supabase
     .from('suporte_tickets')
-    .select('id, assunto, categoria, status, prioridade, created_at, clinica:clinica_id(nome)')
+    .select('id, assunto, categoria, status, prioridade, created_at, clinica_id')
     .eq('id', id)
     .maybeSingle()
 
   if (!ticket) notFound()
 
-  const { data: mensagens } = await supabase
-    .from('suporte_mensagens')
-    .select('id, autor_tipo, conteudo, created_at')
-    .eq('ticket_id', id)
-    .order('created_at', { ascending: true })
+  const [{ data: clinica }, { data: mensagens }] = await Promise.all([
+    supabase.from('clinica').select('nome').eq('id', ticket.clinica_id).maybeSingle(),
+    supabase
+      .from('suporte_mensagens')
+      .select('id, autor_tipo, conteudo, created_at')
+      .eq('ticket_id', id)
+      .order('created_at', { ascending: true }),
+  ])
 
-  const clinicaNome = (ticket.clinica as { nome: string } | null)?.nome ?? null
+  const clinicaNome = clinica?.nome ?? null
 
   return (
     <div className="px-10 pt-7 pb-10 max-w-[820px]">

@@ -15,14 +15,20 @@ export default async function DashboardLayout({
 
   const { data: prof } = await supabase
     .from('profissionais')
-    .select('nome, role, iniciais, clinica:clinica_id(nome, onboarding_completo)')
+    .select('nome, role, iniciais, clinica_id')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const clinica = prof?.clinica as { nome: string; onboarding_completo: boolean } | null
+  if (prof?.clinica_id) {
+    const { data: clinica } = await supabase
+      .from('clinica')
+      .select('nome, onboarding_completo')
+      .eq('id', prof.clinica_id)
+      .maybeSingle()
 
-  if (clinica && !clinica.onboarding_completo) {
-    redirect('/onboarding')
+    if (clinica && !clinica.onboarding_completo) {
+      redirect('/onboarding')
+    }
   }
 
   return (

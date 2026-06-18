@@ -3,10 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 export default async function AdminUsuariosPage() {
   const supabase = await createClient()
 
-  const { data: profissionais } = await supabase
-    .from('profissionais')
-    .select('id, nome, email, role, ativo, user_id, clinica_id, created_at, clinica:clinica_id(nome)')
-    .order('created_at', { ascending: false })
+  const [{ data: profissionais }, { data: clinicas }] = await Promise.all([
+    supabase
+      .from('profissionais')
+      .select('id, nome, email, role, ativo, user_id, clinica_id, created_at')
+      .order('created_at', { ascending: false }),
+    supabase.from('clinica').select('id, nome'),
+  ])
+
+  const clinicaNomeById = new Map(clinicas?.map((c) => [c.id, c.nome]) ?? [])
 
   return (
     <div className="px-10 pt-7 pb-10">
@@ -37,12 +42,12 @@ export default async function AdminUsuariosPage() {
               </tr>
             ) : (
               profissionais?.map((p) => {
-                const c = p.clinica as { nome: string } | null
+                const clinicaNome = p.clinica_id ? clinicaNomeById.get(p.clinica_id) : null
                 return (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-bg transition-colors">
                     <td className="px-6 py-4 text-sm font-semibold">{p.nome}</td>
                     <td className="px-6 py-4 text-sm text-muted">{p.email ?? '—'}</td>
-                    <td className="px-6 py-4 text-sm text-muted">{c?.nome ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm text-muted">{clinicaNome ?? '—'}</td>
                     <td className="px-6 py-4">
                       <span className="text-[11px] font-semibold px-3 py-1 rounded-md bg-bg text-text">
                         {p.role}

@@ -236,6 +236,12 @@ export type Database = {
         Update: Partial<{ id: string; nome: string; tipo: string }>
         Relationships: []
       }
+      plataforma_admins: {
+        Row: { created_at: string; nome: string | null; user_id: string }
+        Insert: { created_at?: string; nome?: string | null; user_id: string }
+        Update: Partial<{ created_at: string; nome: string | null; user_id: string }>
+        Relationships: []
+      }
       profissionais: {
         Row: {
           ativo: boolean
@@ -252,6 +258,7 @@ export type Database = {
           role: string
           telefone: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           ativo?: boolean
@@ -268,6 +275,7 @@ export type Database = {
           role?: string
           telefone?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: Partial<Database["public"]["Tables"]["profissionais"]["Insert"]>
         Relationships: []
@@ -296,6 +304,52 @@ export type Database = {
           profissional_id: string
         }
         Update: Partial<Database["public"]["Tables"]["prontuarios"]["Insert"]>
+        Relationships: []
+      }
+      suporte_mensagens: {
+        Row: {
+          autor_id: string
+          autor_tipo: string
+          conteudo: string
+          created_at: string
+          id: string
+          ticket_id: string
+        }
+        Insert: {
+          autor_id: string
+          autor_tipo: string
+          conteudo: string
+          created_at?: string
+          id?: string
+          ticket_id: string
+        }
+        Update: Partial<Database["public"]["Tables"]["suporte_mensagens"]["Insert"]>
+        Relationships: []
+      }
+      suporte_tickets: {
+        Row: {
+          assunto: string
+          categoria: string
+          clinica_id: string
+          created_at: string
+          criado_por: string
+          id: string
+          prioridade: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assunto: string
+          categoria?: string
+          clinica_id: string
+          created_at?: string
+          criado_por: string
+          id?: string
+          prioridade?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["suporte_tickets"]["Insert"]>
         Relationships: []
       }
       tags: {
@@ -391,8 +445,147 @@ export type Database = {
         Relationships: []
       }
     }
-    Views: Record<string, never>
-    Functions: Record<string, never>
+    Views: {
+      v_agenda: {
+        Row: {
+          clinica_id: string | null
+          data: string | null
+          hora_fim: string | null
+          hora_inicio: string | null
+          id: string | null
+          lembrete_enviado: boolean | null
+          notas: string | null
+          paciente_iniciais: string | null
+          paciente_nome: string | null
+          paciente_whatsapp: string | null
+          profissional_nome: string | null
+          status: string | null
+          tipo_cor: string | null
+          tipo_nome: string | null
+        }
+        Relationships: []
+      }
+      v_atendimento: {
+        Row: {
+          canal: string | null
+          cliente_desde: string | null
+          clinica_id: string | null
+          conversa_id: string | null
+          conversa_status: string | null
+          data_nascimento: string | null
+          mensagens_nao_lidas: number | null
+          observacoes: string | null
+          paciente_cor: string | null
+          paciente_id: string | null
+          paciente_iniciais: string | null
+          paciente_nome: string | null
+          paciente_telefone: string | null
+          paciente_whatsapp: string | null
+          proximo_agendamento: string | null
+          total_atendimentos: number | null
+          total_gasto: number | null
+          ultima_mensagem_at: string | null
+          ultima_mensagem_texto: string | null
+          valor_plano: number | null
+          whatsapp_status: string | null
+        }
+        Relationships: []
+      }
+      v_dashboard_kpis: {
+        Row: {
+          clinica_id: string | null
+          consultas_hoje: number | null
+          consultas_mes: number | null
+          pacientes_ativos: number | null
+          pacientes_novos_mes: number | null
+          pacientes_total: number | null
+          receita_mensal: number | null
+        }
+        Relationships: []
+      }
+      v_pacientes_tabela: {
+        Row: {
+          cliente_desde: string | null
+          clinica_id: string | null
+          codigo: number | null
+          cor: string | null
+          cpf: string | null
+          data_nascimento: string | null
+          email: string | null
+          id: string | null
+          iniciais: string | null
+          nome: string | null
+          observacoes: string | null
+          plano_nome: string | null
+          plano_tipo: string | null
+          proxima_consulta: string | null
+          status: string | null
+          tags: string[] | null
+          telefone: string | null
+          total_atendimentos: number | null
+          total_gasto: number | null
+          ultima_consulta: string | null
+          valor_plano: number | null
+          whatsapp: string | null
+        }
+        Relationships: []
+      }
+      v_suporte_inbox: {
+        Row: {
+          assunto: string | null
+          categoria: string | null
+          clinica_id: string | null
+          clinica_nome: string | null
+          created_at: string | null
+          criado_por: string | null
+          id: string | null
+          prioridade: string | null
+          status: string | null
+          total_mensagens: number | null
+          ultima_mensagem: string | null
+          ultima_mensagem_at: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_whatsapp_status: {
+        Row: {
+          clinica_id: string | null
+          created_at: string | null
+          id: string | null
+          nome_instancia: string | null
+          numero: string | null
+          online: boolean | null
+          status: string | null
+          ultimo_ping: string | null
+        }
+        Insert: {
+          clinica_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          nome_instancia?: string | null
+          numero?: string | null
+          online?: never
+          status?: string | null
+          ultimo_ping?: string | null
+        }
+        Update: Partial<{
+          clinica_id: string
+          created_at: string
+          id: string
+          nome_instancia: string
+          numero: string
+          online: never
+          status: string
+          ultimo_ping: string
+        }>
+        Relationships: []
+      }
+    }
+    Functions: {
+      auth_clinica_id: { Args: Record<string, never>; Returns: string }
+      is_platform_admin: { Args: Record<string, never>; Returns: boolean }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

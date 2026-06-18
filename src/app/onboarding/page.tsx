@@ -11,16 +11,22 @@ export default async function OnboardingPage() {
 
   const { data: prof } = await supabase
     .from('profissionais')
-    .select('nome, clinica:clinica_id(id, nome, telefone, cnpj, endereco, onboarding_completo)')
+    .select('nome, clinica_id')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const clinica = prof?.clinica as
-    | { id: string; nome: string; telefone: string | null; cnpj: string | null; endereco: string | null; onboarding_completo: boolean }
-    | null
-
-  if (!prof || !clinica) {
+  if (!prof?.clinica_id) {
     redirect('/login?error=Sua%20conta%20n%C3%A3o%20tem%20cl%C3%ADnica%20vinculada')
+  }
+
+  const { data: clinica } = await supabase
+    .from('clinica')
+    .select('id, nome, telefone, cnpj, endereco, onboarding_completo')
+    .eq('id', prof.clinica_id)
+    .maybeSingle()
+
+  if (!clinica) {
+    redirect('/login?error=Cl%C3%ADnica%20n%C3%A3o%20encontrada')
   }
 
   if (clinica.onboarding_completo) {
