@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CalendarIcon, VideoIcon, WalletIcon, CheckCircleIcon } from '@/components/icons'
+import { CalendarIcon } from '@/components/icons'
 
 function greeting(hour: number) {
   return hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
@@ -18,23 +18,16 @@ export function DashboardHero({
   userName,
   consultasHoje,
   proximaHora,
-  consultasOnline,
-  receitaMes,
 }: {
   userName: string
   consultasHoje: number
   proximaHora: string | null
-  consultasOnline: number
-  receitaMes: number
 }) {
   const now = new Date()
   const hour = now.getHours()
   const firstName = userName.split(' ').slice(0, 2).join(' ')
   const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
   const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  const receitaFormatted = receitaMes >= 1000
-    ? `R$ ${(receitaMes / 1000).toFixed(1).replace('.', ',')}k`
-    : `R$ ${receitaMes.toFixed(0)}`
 
   const subtitle = consultasHoje > 0
     ? `Você tem ${consultasHoje} consulta${consultasHoje === 1 ? '' : 's'} hoje${proximaHora ? `. A próxima é às ${proximaHora}.` : '.'}`
@@ -99,21 +92,6 @@ export function DashboardHero({
         </div>
       </div>
 
-      <div className="flex gap-[10px] mt-[22px] flex-wrap relative z-10">
-        <Chip icon={<CheckCircleIcon className="w-[17px] h-[17px]" />} label="Consultas hoje" value={String(consultasHoje)} />
-        <Chip icon={<VideoIcon className="w-[17px] h-[17px]" />} label="Online" value={String(consultasOnline)} />
-        <Chip icon={<WalletIcon className="w-[17px] h-[17px]" />} label="Receita" value={receitaFormatted} />
-      </div>
-    </div>
-  )
-}
-
-function Chip({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-[9px] bg-white/[0.13] border border-white/[0.16] px-[14px] py-[10px] rounded-[13px]">
-      {icon}
-      <span className="text-[13px] text-white/85">{label}</span>
-      <span className="font-newsreader font-semibold text-[18px]">{value}</span>
     </div>
   )
 }

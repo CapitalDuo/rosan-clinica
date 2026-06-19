@@ -10,6 +10,7 @@ import {
   SettingsIcon,
   ChatIcon,
   LeafIcon,
+  LogOutIcon,
 } from '@/components/icons'
 import { logoutAction } from '@/app/login/actions'
 
@@ -75,28 +76,24 @@ export function Sidebar({
           <ChatIcon className={`w-[19px] h-[19px] ${suporteActive ? 'text-[#5b4bd4]' : 'text-[#b4b1a9]'}`} />
           Suporte
         </Link>
-        <div className="flex items-center gap-3 mt-3.5 px-2.5 pt-3.5 pb-0.5 border-t border-[#f0efec]">
-          <div className="w-10 h-10 rounded-[12px] bg-text text-white flex items-center justify-center font-bold text-sm">
+        <div className="flex items-center gap-3 mt-3.5 px-2 pt-3.5 border-t border-[#f0efec]">
+          <div className="w-10 h-10 rounded-[12px] bg-text text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
             {userInitials}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-text leading-tight truncate">{userName}</div>
             <div className="text-[11.5px] text-[#a3a09a]">{userRole}</div>
           </div>
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              title="Sair"
-              className="text-[#c0bdb5] hover:text-[#f06a6a] transition-colors"
-              aria-label="Sair"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[17px] h-[17px]">
-                <path d="M18.36 6.64a9 9 0 1 1-12.72 0" />
-                <line x1="12" y1="2" x2="12" y2="12" />
-              </svg>
-            </button>
-          </form>
         </div>
+        <form action={logoutAction} className="mt-2">
+          <button
+            type="submit"
+            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-[12px] text-[14.5px] font-semibold text-[#5b4bd4] bg-[#f1eefb] hover:bg-[#e7e1fa] transition-colors cursor-pointer"
+          >
+            <LogOutIcon className="w-[19px] h-[19px]" />
+            Sair
+          </button>
+        </form>
       </div>
     </aside>
   )

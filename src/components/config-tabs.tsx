@@ -23,7 +23,7 @@ export function ConfigTabs() {
               key={t.href}
               href={t.href}
               className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-                active ? 'border-text text-text' : 'border-transparent text-muted hover:text-text'
+                active ? 'border-[#5b4bd4] text-[#5b4bd4]' : 'border-transparent text-muted hover:text-text'
               }`}
             >
               {t.label}

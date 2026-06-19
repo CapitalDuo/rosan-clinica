@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/kpi-card'
-import { CalendarIcon, UsersIcon, VideoIcon, WalletIcon } from '@/components/icons'
+import { CalendarIcon, UsersIcon, WalletIcon } from '@/components/icons'
 import { DonutChart, WeekChart, type WeekPoint } from '@/components/dashboard-charts'
 import { DashboardHero } from '@/components/dashboard-hero'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
-import { DashboardTopbar } from '@/components/dashboard-topbar'
 import { DailyGoals } from '@/components/daily-goals'
 
 function todayISO() {
@@ -130,19 +129,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="px-8 py-6 flex flex-col gap-[22px] max-w-[1500px] w-full mx-auto min-w-0">
-      <DashboardTopbar />
-
       <div className="flex gap-[26px] items-start">
         <div className="flex-1 flex flex-col gap-[22px] min-w-0">
           <DashboardHero
             userName={userName}
             consultasHoje={kpis?.consultas_hoje ?? 0}
             proximaHora={proxima ? formatHora(proxima.hora_inicio) : null}
-            consultasOnline={0}
-            receitaMes={Number(kpis?.receita_mensal ?? 0)}
           />
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <KpiCard
               icon={<CalendarIcon className="w-[19px] h-[19px]" />}
               label="Consultas hoje"
@@ -156,13 +151,6 @@ export default async function DashboardPage() {
               value={String(kpis?.pacientes_ativos ?? 0)}
               color="green"
               sparkline="climb"
-            />
-            <KpiCard
-              icon={<VideoIcon className="w-[19px] h-[19px]" />}
-              label="Atend. online"
-              value="0"
-              color="blue"
-              sparkline="wave"
             />
             <KpiCard
               icon={<WalletIcon className="w-[19px] h-[19px]" />}
