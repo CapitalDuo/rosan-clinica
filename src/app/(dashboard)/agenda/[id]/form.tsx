@@ -145,9 +145,8 @@ export function EditarAgendamentoForm({
             className="w-full px-4 py-3 rounded-[10px] border border-border text-sm outline-none focus:border-text transition-colors bg-bg cursor-pointer"
           >
             <option value="agendado">Agendado</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="em_atendimento">Em atendimento</option>
-            <option value="concluido">Concluído</option>
+            <option value="em_atendimento">Em andamento</option>
+            <option value="concluido">Finalizado</option>
             <option value="cancelado">Cancelado</option>
             <option value="faltou">Faltou</option>
           </select>

@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@/components/icons'
+import { moveAgendamentoAction } from '@/app/(dashboard)/agenda/actions'
 
 export type AgendaEvento = {
   id: string
@@ -34,8 +36,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   agendado: 'Agendado',
-  confirmado: 'Confirmado',
-  em_atendimento: 'Em atendimento',
+  confirmado: 'Agendado',
+  em_atendimento: 'Em andamento',
   concluido: 'Finalizado',
   cancelado: 'Cancelado',
   faltou: 'Faltou',
@@ -43,7 +45,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_LEGEND = [
   { color: '#6366F1', label: 'Agendado' },
-  { color: '#FBBF24', label: 'Em atendimento' },
+  { color: '#FBBF24', label: 'Em andamento' },
   { color: '#34D399', label: 'Finalizado' },
   { color: '#F87171', label: 'Cancelado / Faltou' },
 ]
@@ -120,6 +122,12 @@ function hexToBg(hex: string): string {
   return `${hex}33` // ~20% opacity
 }
 
+type DragPayload = { id: string; hora_inicio: string; hora_fim: string; data: string }
+
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
 export function AgendaCalendar({
   view,
   anchorISO,
@@ -133,6 +141,78 @@ export function AgendaCalendar({
   const searchParams = useSearchParams()
   const anchor = isoToDate(anchorISO)
   const today = todayISO()
+
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dropHint, setDropHint] = useState<{ day: string; top: number } | null>(null)
+  const [isMoving, startMoveTransition] = useTransition()
+
+  function snapToSlot(y: number): { minutes: number; top: number } {
+    const ROW_HEIGHT = 64
+    const startHour = HOURS[0]
+    const minutesFromGridTop = (y / ROW_HEIGHT) * 60
+    const totalMinutes = startHour * 60 + minutesFromGridTop
+    const minutes = Math.max(startHour * 60, Math.round(totalMinutes / 15) * 15)
+    const top = ((minutes - startHour * 60) / 60) * ROW_HEIGHT
+    return { minutes, top }
+  }
+
+  function onColumnDragOver(e: React.DragEvent<HTMLDivElement>, dayISO: string) {
+    if (!draggedId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const { top } = snapToSlot(y)
+    setDropHint({ day: dayISO, top })
+  }
+
+  function onColumnDragLeave() {
+    setDropHint(null)
+  }
+
+  function onColumnDrop(e: React.DragEvent<HTMLDivElement>, dayISO: string) {
+    e.preventDefault()
+    const raw = e.dataTransfer.getData('application/x-agendamento')
+    setDropHint(null)
+    setDraggedId(null)
+    if (!raw) return
+
+    let payload: DragPayload
+    try {
+      payload = JSON.parse(raw)
+    } catch {
+      return
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const { minutes } = snapToSlot(y)
+    const newH = Math.floor(minutes / 60)
+    const newM = minutes % 60
+    const newHoraInicio = `${pad(newH)}:${pad(newM)}:00`
+
+    const [oldStartH, oldStartM] = payload.hora_inicio.split(':').map(Number)
+    const [oldEndH, oldEndM] = payload.hora_fim.split(':').map(Number)
+    const durMin = oldEndH * 60 + oldEndM - (oldStartH * 60 + oldStartM)
+    const endTotal = minutes + Math.max(durMin, 15)
+    const endH = Math.floor(endTotal / 60)
+    const endM = endTotal % 60
+    const newHoraFim = `${pad(endH)}:${pad(endM)}:00`
+
+    const samePlace =
+      payload.data === dayISO &&
+      payload.hora_inicio.slice(0, 5) === newHoraInicio.slice(0, 5)
+    if (samePlace) return
+
+    startMoveTransition(async () => {
+      const result = await moveAgendamentoAction(payload.id, dayISO, newHoraInicio, newHoraFim)
+      if (!result.ok) {
+        alert('Erro ao mover consulta: ' + result.error)
+        return
+      }
+      router.refresh()
+    })
+  }
 
   const days = view === 'week'
     ? Array.from({ length: 7 }, (_, i) => {
@@ -256,8 +336,15 @@ export function AgendaCalendar({
             const dayEvents = eventosByDay[iso] ?? []
             const layout = layoutDay(dayEvents)
             const isToday = iso === today
+            const showHint = dropHint?.day === iso
             return (
-              <div key={dayIdx} className={`relative border-l border-border ${isToday ? 'bg-blue/5' : ''}`}>
+              <div
+                key={dayIdx}
+                className={`relative border-l border-border ${isToday ? 'bg-blue/5' : ''}`}
+                onDragOver={(e) => onColumnDragOver(e, iso)}
+                onDragLeave={onColumnDragLeave}
+                onDrop={(e) => onColumnDrop(e, iso)}
+              >
                 {HOURS.map((h) => (
                   <Link
                     key={h}
@@ -265,6 +352,14 @@ export function AgendaCalendar({
                     className="h-16 border-b border-border block hover:bg-bg/50 transition-colors cursor-pointer"
                   />
                 ))}
+                {showHint && dropHint && (
+                  <div
+                    className="absolute left-0 right-0 pointer-events-none border-t-2 border-text/60 z-10"
+                    style={{ top: `${dropHint.top}px` }}
+                  >
+                    <div className="absolute -top-2 -left-1 w-3 h-3 rounded-full bg-text/60" />
+                  </div>
+                )}
                 {dayEvents.map((ev) => {
                   const { top, height } = eventPosition(ev)
                   const color = STATUS_COLORS[ev.status] ?? '#7aa6d6'
@@ -273,6 +368,7 @@ export function AgendaCalendar({
                   const widthPct = 100 / slot.total
                   const leftPct = slot.col * widthPct
                   const dimmed = ev.status === 'cancelado' || ev.status === 'faltou'
+                  const isDragging = draggedId === ev.id
                   const titleParts = [
                     `${ev.hora_inicio.slice(0, 5)} – ${ev.hora_fim.slice(0, 5)} · ${ev.paciente_nome}`,
                     ev.profissional_nome,
@@ -284,7 +380,23 @@ export function AgendaCalendar({
                     <Link
                       key={ev.id}
                       href={`/agenda/${ev.id}`}
-                      className={`absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${dimmed ? 'opacity-60 line-through' : ''}`}
+                      draggable
+                      onDragStart={(e) => {
+                        const payload: DragPayload = {
+                          id: ev.id,
+                          hora_inicio: ev.hora_inicio,
+                          hora_fim: ev.hora_fim,
+                          data: ev.data,
+                        }
+                        e.dataTransfer.setData('application/x-agendamento', JSON.stringify(payload))
+                        e.dataTransfer.effectAllowed = 'move'
+                        setDraggedId(ev.id)
+                      }}
+                      onDragEnd={() => {
+                        setDraggedId(null)
+                        setDropHint(null)
+                      }}
+                      className={`absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-grab active:cursor-grabbing hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${dimmed ? 'opacity-60 line-through' : ''} ${isDragging ? 'opacity-30 ring-2 ring-text/40' : ''}`}
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
@@ -316,6 +428,12 @@ export function AgendaCalendar({
           })}
         </div>
       </div>
+
+      {isMoving && (
+        <div className="fixed bottom-6 right-6 bg-text text-white text-xs font-semibold px-4 py-2 rounded-[10px] shadow-lg">
+          Movendo consulta…
+        </div>
+      )}
 
       {eventos.length === 0 && (
         <div className="mt-5 text-center text-sm text-muted">

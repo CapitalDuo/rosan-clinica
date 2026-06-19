@@ -96,3 +96,31 @@ export async function deleteAgendamentoAction(id: string) {
   revalidatePath('/')
   redirect('/agenda')
 }
+
+// Used by drag-and-drop to move an appointment to a new slot, preserving its duration
+export async function moveAgendamentoAction(
+  id: string,
+  newDate: string,
+  newHoraInicio: string,
+  newHoraFim: string,
+) {
+  if (!id || !newDate || !newHoraInicio || !newHoraFim) {
+    return { ok: false as const, error: 'Dados de movimentação incompletos' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('agendamentos')
+    .update({
+      data: newDate,
+      hora_inicio: newHoraInicio,
+      hora_fim: newHoraFim,
+    })
+    .eq('id', id)
+
+  if (error) return { ok: false as const, error: error.message }
+
+  revalidatePath('/agenda')
+  revalidatePath('/')
+  return { ok: true as const }
+}
