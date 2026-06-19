@@ -17,17 +17,36 @@ export type AgendaEvento = {
   tipo_cor: string | null
 }
 
+export type AgendaView = 'day' | 'week'
+
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 const HOURS = Array.from({ length: 12 }, (_, i) => 7 + i) // 07h–18h
 
-const statusBorder: Record<string, string> = {
-  agendado: '#7aa6d6',
-  confirmado: '#4caf50',
-  em_atendimento: '#f5a623',
-  concluido: '#999',
-  cancelado: '#e74c3c',
-  faltou: '#e74c3c',
+// Status colors — user-defined, 4 buckets covering 6 db statuses
+const STATUS_COLORS: Record<string, string> = {
+  agendado: '#6366F1',
+  confirmado: '#6366F1', // same bucket as agendado
+  em_atendimento: '#FBBF24',
+  concluido: '#34D399',
+  faltou: '#F87171',
+  cancelado: '#F87171', // same bucket as faltou
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  agendado: 'Agendado',
+  confirmado: 'Confirmado',
+  em_atendimento: 'Em atendimento',
+  concluido: 'Finalizado',
+  cancelado: 'Cancelado',
+  faltou: 'Faltou',
+}
+
+const STATUS_LEGEND = [
+  { color: '#6366F1', label: 'Agendado' },
+  { color: '#FBBF24', label: 'Em atendimento' },
+  { color: '#34D399', label: 'Finalizado' },
+  { color: '#F87171', label: 'Cancelado / Faltou' },
+]
 
 function isoToDate(iso: string) {
   return new Date(iso + 'T00:00:00')
@@ -39,11 +58,17 @@ function shiftDays(iso: string, days: number) {
   return d.toISOString().slice(0, 10)
 }
 
-function formatRange(monday: Date) {
+function formatWeekRange(monday: Date) {
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
   const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
   return `${fmt(monday)} – ${fmt(sunday)}, ${sunday.getFullYear()}`
+}
+
+function formatDayLabel(d: Date) {
+  const weekday = d.toLocaleDateString('pt-BR', { weekday: 'long' })
+  const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1)
+  return `${cap}, ${d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
 }
 
 function todayISO() {
@@ -71,7 +96,6 @@ function overlaps(a: AgendaEvento, b: AgendaEvento) {
   return a.hora_fim > b.hora_inicio && a.hora_inicio < b.hora_fim
 }
 
-// For each event, compute its column index and the total columns of its overlap cluster.
 function layoutDay(events: AgendaEvento[]): Map<string, { col: number; total: number }> {
   const sorted = [...events].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
   const placed: { ev: AgendaEvento; col: number }[] = []
@@ -92,42 +116,55 @@ function layoutDay(events: AgendaEvento[]): Map<string, { col: number; total: nu
   return layout
 }
 
-function hexToBg(hex: string | null, fallback = '#7aa6d6'): string {
-  const color = hex ?? fallback
-  return `${color}55` // ~33% opacity — strong enough to differentiate types
+function hexToBg(hex: string): string {
+  return `${hex}33` // ~20% opacity
 }
 
-const statusLabel: Record<string, string> = {
-  agendado: 'Agendado',
-  confirmado: 'Confirmado',
-  em_atendimento: 'Em atendimento',
-  concluido: 'Concluído',
-  cancelado: 'Cancelado',
-  faltou: 'Faltou',
-}
-
-export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; eventos: AgendaEvento[] }) {
+export function AgendaCalendar({
+  view,
+  anchorISO,
+  eventos,
+}: {
+  view: AgendaView
+  anchorISO: string
+  eventos: AgendaEvento[]
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const monday = isoToDate(mondayISO)
+  const anchor = isoToDate(anchorISO)
   const today = todayISO()
 
-  function navigate(deltaDays: number) {
-    const next = shiftDays(mondayISO, deltaDays)
+  const days = view === 'week'
+    ? Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(anchor)
+        d.setDate(anchor.getDate() + i)
+        return d
+      })
+    : [anchor]
+
+  const dateLabel = view === 'week' ? formatWeekRange(anchor) : formatDayLabel(anchor)
+
+  function navigate(delta: number) {
+    const step = view === 'week' ? 7 : 1
+    const next = shiftDays(anchorISO, delta * step)
     const params = new URLSearchParams(searchParams.toString())
-    params.set('week', next)
+    params.set('date', next)
     router.push(`/agenda?${params.toString()}`)
   }
 
   function goToday() {
-    router.push('/agenda')
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('date')
+    router.push(`/agenda${params.toString() ? '?' + params.toString() : ''}`)
   }
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
+  function setView(v: AgendaView) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('view', v)
+    // When switching to day mode from week, anchor on the current week's monday OR today
+    // When switching to week from day, anchor monday of the day's week
+    router.push(`/agenda?${params.toString()}`)
+  }
 
   const eventosByDay: Record<string, AgendaEvento[]> = {}
   for (const ev of eventos) {
@@ -135,14 +172,16 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
     eventosByDay[ev.data].push(ev)
   }
 
+  const gridCols = view === 'week' ? 'grid-cols-[60px_repeat(7,1fr)]' : 'grid-cols-[60px_1fr]'
+
   return (
     <>
       <div className="flex items-center justify-between py-6">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate(-7)} className="w-9 h-9 rounded-[10px] border border-border bg-card flex items-center justify-center cursor-pointer hover:bg-bg transition-colors">
+          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-[10px] border border-border bg-card flex items-center justify-center cursor-pointer hover:bg-bg transition-colors">
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
-          <button onClick={() => navigate(7)} className="w-9 h-9 rounded-[10px] border border-border bg-card flex items-center justify-center cursor-pointer hover:bg-bg transition-colors">
+          <button onClick={() => navigate(1)} className="w-9 h-9 rounded-[10px] border border-border bg-card flex items-center justify-center cursor-pointer hover:bg-bg transition-colors">
             <ChevronRightIcon className="w-4 h-4" />
           </button>
           <button onClick={goToday} className="px-[18px] py-2 rounded-[10px] border border-border bg-card text-[13px] font-semibold cursor-pointer hover:bg-bg transition-colors">
@@ -150,27 +189,60 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
           </button>
           <div className="flex items-center gap-2 ml-3 text-sm font-medium text-text">
             <CalendarIcon className="w-[18px] h-[18px] text-muted" />
-            <span>{formatRange(monday)}</span>
+            <span>{dateLabel}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 mr-2">
+            {STATUS_LEGEND.map((s) => (
+              <div key={s.color} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
+                <span className="text-[11px] text-muted font-medium">{s.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex rounded-[10px] border border-border bg-card p-0.5">
+            <button
+              onClick={() => setView('day')}
+              className={`px-4 py-1.5 rounded-lg text-[13px] font-semibold cursor-pointer transition-all ${
+                view === 'day' ? 'bg-text text-white' : 'text-muted hover:text-text'
+              }`}
+            >
+              Dia
+            </button>
+            <button
+              onClick={() => setView('week')}
+              className={`px-4 py-1.5 rounded-lg text-[13px] font-semibold cursor-pointer transition-all ${
+                view === 'week' ? 'bg-text text-white' : 'text-muted hover:text-text'
+              }`}
+            >
+              Semana
+            </button>
           </div>
         </div>
       </div>
 
       <div className="bg-card border border-border rounded-[14px] overflow-hidden">
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border bg-bg">
+        <div className={`grid ${gridCols} border-b border-border bg-bg`}>
           <div />
           {days.map((d, i) => {
             const iso = d.toISOString().slice(0, 10)
             const isToday = iso === today
+            const weekdayLabel = view === 'week'
+              ? WEEKDAYS[i]
+              : d.toLocaleDateString('pt-BR', { weekday: 'long' }).replace(/^./, (c) => c.toUpperCase())
             return (
               <div key={i} className={`px-3 py-3 text-center border-l border-border ${isToday ? 'bg-card' : ''}`}>
-                <div className={`text-xs font-semibold ${isToday ? 'text-text' : 'text-muted'}`}>{WEEKDAYS[i]}</div>
+                <div className={`text-xs font-semibold ${isToday ? 'text-text' : 'text-muted'}`}>{weekdayLabel}</div>
                 <div className={`text-sm font-bold mt-0.5 ${isToday ? 'text-text' : 'text-muted'}`}>{String(d.getDate()).padStart(2, '0')}/{String(d.getMonth() + 1).padStart(2, '0')}</div>
               </div>
             )
           })}
         </div>
 
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] relative">
+        <div className={`grid ${gridCols} relative`}>
           <div>
             {HOURS.map((h) => (
               <div key={h} className="h-16 border-b border-border text-[11px] text-muted text-center pt-1">
@@ -195,8 +267,8 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
                 ))}
                 {dayEvents.map((ev) => {
                   const { top, height } = eventPosition(ev)
-                  const bg = hexToBg(ev.tipo_cor)
-                  const border = ev.tipo_cor ?? statusBorder[ev.status] ?? '#7aa6d6'
+                  const color = STATUS_COLORS[ev.status] ?? '#7aa6d6'
+                  const bg = hexToBg(color)
                   const slot = layout.get(ev.id) ?? { col: 0, total: 1 }
                   const widthPct = 100 / slot.total
                   const leftPct = slot.col * widthPct
@@ -205,21 +277,21 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
                     `${ev.hora_inicio.slice(0, 5)} – ${ev.hora_fim.slice(0, 5)} · ${ev.paciente_nome}`,
                     ev.profissional_nome,
                     ev.tipo_nome ?? '',
-                    statusLabel[ev.status] ?? ev.status,
+                    STATUS_LABEL[ev.status] ?? ev.status,
                     ev.notas ? `\n📝 ${ev.notas}` : '',
                   ].filter(Boolean).join(' · ')
                   return (
                     <Link
                       key={ev.id}
                       href={`/agenda/${ev.id}`}
-                      className={`absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${dimmed ? 'opacity-50 line-through' : ''}`}
+                      className={`absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${dimmed ? 'opacity-60 line-through' : ''}`}
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
                         left: `calc(${leftPct}% + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
                         background: bg,
-                        borderLeft: `3px solid ${border}`,
+                        borderLeft: `3px solid ${color}`,
                       }}
                       title={titleParts}
                     >
@@ -247,7 +319,7 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
 
       {eventos.length === 0 && (
         <div className="mt-5 text-center text-sm text-muted">
-          Nenhum agendamento nesta semana. Clique num horário pra criar.
+          Nenhum agendamento {view === 'day' ? 'neste dia' : 'nesta semana'}. Clique num horário pra criar.
         </div>
       )}
     </>

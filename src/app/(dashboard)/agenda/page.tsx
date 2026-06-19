@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { AgendaCalendar } from '@/components/agenda-calendar'
+import { AgendaCalendar, type AgendaView } from '@/components/agenda-calendar'
 
 function mondayOf(d: Date) {
   const day = d.getDay()
@@ -18,20 +18,34 @@ function isoDate(d: Date) {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>
+  searchParams: Promise<{ date?: string; view?: string }>
 }) {
   const sp = await searchParams
-  const ref = sp.week ? new Date(sp.week + 'T00:00:00') : new Date()
-  const monday = mondayOf(ref)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
+  const view: AgendaView = sp.view === 'day' ? 'day' : 'week'
+  const ref = sp.date ? new Date(sp.date + 'T00:00:00') : new Date()
+
+  let anchor: Date
+  let from: Date
+  let to: Date
+
+  if (view === 'week') {
+    anchor = mondayOf(ref)
+    from = anchor
+    to = new Date(anchor)
+    to.setDate(anchor.getDate() + 6)
+  } else {
+    anchor = new Date(ref)
+    anchor.setHours(0, 0, 0, 0)
+    from = anchor
+    to = anchor
+  }
 
   const supabase = await createClient()
   const { data: eventos } = await supabase
     .from('v_agenda')
     .select('id, data, hora_inicio, hora_fim, status, notas, paciente_nome, profissional_nome, tipo_nome, tipo_cor')
-    .gte('data', isoDate(monday))
-    .lte('data', isoDate(sunday))
+    .gte('data', isoDate(from))
+    .lte('data', isoDate(to))
     .order('data')
     .order('hora_inicio')
 
@@ -48,7 +62,8 @@ export default async function AgendaPage({
       </div>
       <div className="px-10 pb-10">
         <AgendaCalendar
-          mondayISO={isoDate(monday)}
+          view={view}
+          anchorISO={isoDate(anchor)}
           eventos={(eventos ?? []).map((e) => ({
             id: e.id ?? '',
             data: e.data ?? '',
