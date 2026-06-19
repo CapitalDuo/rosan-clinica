@@ -46,8 +46,9 @@ export default async function DashboardPage() {
 
   const today = todayISO()
   const nowTime = new Date().toTimeString().slice(0, 8)
+  const firstOfMonth = today.slice(0, 7) + '-01'
 
-  const [{ data: prof }, { data: kpis }, { data: hoje }, { data: proximos }, { data: candidates }] = await Promise.all([
+  const [{ data: prof }, { data: kpis }, { data: hoje }, { data: proximos }, { data: candidates }, { data: monthAppts }] = await Promise.all([
     supabase.from('profissionais').select('nome').eq('user_id', user.id).maybeSingle(),
     supabase.from('v_dashboard_kpis').select('*').maybeSingle(),
     supabase
@@ -70,7 +71,25 @@ export default async function DashboardPage() {
       .order('data', { ascending: true })
       .order('hora_inicio', { ascending: true })
       .limit(20),
+    supabase
+      .from('agendamentos')
+      .select('status')
+      .gte('data', firstOfMonth),
   ])
+
+  const statusBuckets = { agendado: 0, em_atendimento: 0, concluido: 0, cancelado: 0 }
+  for (const a of monthAppts ?? []) {
+    if (a.status === 'agendado' || a.status === 'confirmado') statusBuckets.agendado++
+    else if (a.status === 'em_atendimento') statusBuckets.em_atendimento++
+    else if (a.status === 'concluido') statusBuckets.concluido++
+    else if (a.status === 'cancelado' || a.status === 'faltou') statusBuckets.cancelado++
+  }
+  const statusChart = [
+    { label: 'Agendado', value: statusBuckets.agendado, color: '#6366F1' },
+    { label: 'Em andamento', value: statusBuckets.em_atendimento, color: '#FBBF24' },
+    { label: 'Finalizado', value: statusBuckets.concluido, color: '#34D399' },
+    { label: 'Cancelado / Faltou', value: statusBuckets.cancelado, color: '#F87171' },
+  ]
 
   // Pick the first appointment that is truly in the future (excludes today's already-passed slots)
   const proxima = candidates?.find(
@@ -184,9 +203,8 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-3 gap-5">
           <div className="bg-card border border-border rounded-[14px] p-6 relative">
-            <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider text-muted bg-bg px-2 py-1 rounded">Demo</div>
             <h3 className="font-playfair text-sm font-bold mb-5">Consultas por status</h3>
-            <DonutChart />
+            <DonutChart data={statusChart} />
           </div>
           <div className="bg-card border border-border rounded-[14px] p-6 relative">
             <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider text-muted bg-bg px-2 py-1 rounded">Demo</div>

@@ -28,13 +28,6 @@ export default async function SuporteClientePage() {
 
   return (
     <div className="px-10 pt-7 pb-10 max-w-[820px]">
-      <div className="mb-7">
-        <h1 className="font-playfair text-[28px] font-extrabold tracking-tight">Suporte</h1>
-        <p className="text-sm text-muted mt-0.5">
-          Abra um ticket para falar com o time da plataforma
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 gap-6">
         <NovoTicketForm />
 

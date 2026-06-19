@@ -16,9 +16,12 @@ import {
 
 ChartJS.register(ArcElement, LineElement, PointElement, CategoryScale, LinearScale, Filler, Tooltip, DoughnutController, LineController)
 
-export function DonutChart() {
+export type DonutSlice = { label: string; value: number; color: string }
+
+export function DonutChart({ data }: { data: DonutSlice[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<ChartJS | null>(null)
+  const total = data.reduce((acc, s) => acc + s.value, 0)
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -26,10 +29,10 @@ export function DonutChart() {
     chartRef.current = new ChartJS(canvasRef.current, {
       type: 'doughnut',
       data: {
-        labels: ['Confirmadas', 'Pendentes', 'Canceladas', 'Concluídas'],
+        labels: data.map((s) => s.label),
         datasets: [{
-          data: [32, 8, 5, 3],
-          backgroundColor: ['#4caf50', '#f5a623', '#e74c3c', '#ccc'],
+          data: data.map((s) => Math.max(s.value, 0.0001)),
+          backgroundColor: data.map((s) => s.color),
           borderWidth: 0,
         }],
       },
@@ -37,34 +40,47 @@ export function DonutChart() {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '72%',
-        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: (ctx) => {
+                const slice = data[ctx.dataIndex]
+                return `${slice.label}: ${slice.value}`
+              },
+            },
+          },
+        },
       },
     })
     return () => { chartRef.current?.destroy() }
-  }, [])
+  }, [data])
 
   return (
     <div className="flex items-center gap-6">
       <div className="relative w-[140px] h-[140px] flex-shrink-0">
-        <canvas ref={canvasRef} />
+        {total > 0 ? (
+          <canvas ref={canvasRef} />
+        ) : (
+          <div className="w-full h-full rounded-full border-[18px] border-border" />
+        )}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <span className="font-playfair text-[32px] font-extrabold tracking-tight leading-none block">48</span>
+          <span className="font-playfair text-[32px] font-extrabold tracking-tight leading-none block">{total}</span>
           <span className="text-xs text-muted">Total</span>
         </div>
       </div>
       <div className="flex flex-col gap-2.5">
-        {[
-          { color: 'bg-green', label: 'Confirmadas', value: '32 (66,7%)' },
-          { color: 'bg-orange', label: 'Pendentes', value: '8 (16,7%)' },
-          { color: 'bg-red', label: 'Canceladas', value: '5 (10,4%)' },
-          { color: 'bg-[#ccc]', label: 'Concluídas', value: '3 (6,2%)' },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-2 text-[13px]">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.color}`} />
-            <span className="text-muted flex-1">{item.label}</span>
-            <span className="font-semibold whitespace-nowrap">{item.value}</span>
-          </div>
-        ))}
+        {data.map((s) => {
+          const pct = total > 0 ? ((s.value / total) * 100).toFixed(1).replace('.', ',') : '0,0'
+          return (
+            <div key={s.label} className="flex items-center gap-2 text-[13px]">
+              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+              <span className="text-muted flex-1">{s.label}</span>
+              <span className="font-semibold whitespace-nowrap">{s.value} ({pct}%)</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -99,22 +115,7 @@ export function WeekChart() {
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1a1a1a',
-            titleFont: { size: 12, weight: 'bold' },
-            bodyFont: { size: 12 },
-            padding: 10,
-            cornerRadius: 8,
-            displayColors: false,
-            callbacks: {
-              title: (items) => {
-                const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-                const dates = ['25 Mai', '26 Mai', '27 Mai', '28 Mai', '29 Mai', '30 Mai', '31 Mai']
-                return days[items[0].dataIndex] + ', ' + dates[items[0].dataIndex]
-              },
-              label: (item) => item.raw + ' atendimentos',
-            },
-          },
+          tooltip: { enabled: true },
         },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11, weight: 'normal' as const }, color: '#7a7a7a' } },
