@@ -10,6 +10,7 @@ export type AgendaEvento = {
   hora_inicio: string
   hora_fim: string
   status: string
+  notas: string | null
   paciente_nome: string
   profissional_nome: string
   tipo_nome: string | null
@@ -93,7 +94,16 @@ function layoutDay(events: AgendaEvento[]): Map<string, { col: number; total: nu
 
 function hexToBg(hex: string | null, fallback = '#7aa6d6'): string {
   const color = hex ?? fallback
-  return `${color}26` // ~15% opacity
+  return `${color}55` // ~33% opacity — strong enough to differentiate types
+}
+
+const statusLabel: Record<string, string> = {
+  agendado: 'Agendado',
+  confirmado: 'Confirmado',
+  em_atendimento: 'Em atendimento',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
+  faltou: 'Faltou',
 }
 
 export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; eventos: AgendaEvento[] }) {
@@ -173,8 +183,9 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
             const iso = d.toISOString().slice(0, 10)
             const dayEvents = eventosByDay[iso] ?? []
             const layout = layoutDay(dayEvents)
+            const isToday = iso === today
             return (
-              <div key={dayIdx} className="relative border-l border-border">
+              <div key={dayIdx} className={`relative border-l border-border ${isToday ? 'bg-blue/5' : ''}`}>
                 {HOURS.map((h) => (
                   <Link
                     key={h}
@@ -185,14 +196,23 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
                 {dayEvents.map((ev) => {
                   const { top, height } = eventPosition(ev)
                   const bg = hexToBg(ev.tipo_cor)
-                  const border = statusBorder[ev.status] ?? '#7aa6d6'
+                  const border = ev.tipo_cor ?? statusBorder[ev.status] ?? '#7aa6d6'
                   const slot = layout.get(ev.id) ?? { col: 0, total: 1 }
                   const widthPct = 100 / slot.total
                   const leftPct = slot.col * widthPct
+                  const dimmed = ev.status === 'cancelado' || ev.status === 'faltou'
+                  const titleParts = [
+                    `${ev.hora_inicio.slice(0, 5)} – ${ev.hora_fim.slice(0, 5)} · ${ev.paciente_nome}`,
+                    ev.profissional_nome,
+                    ev.tipo_nome ?? '',
+                    statusLabel[ev.status] ?? ev.status,
+                    ev.notas ? `\n📝 ${ev.notas}` : '',
+                  ].filter(Boolean).join(' · ')
                   return (
-                    <div
+                    <Link
                       key={ev.id}
-                      className="absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md transition-shadow"
+                      href={`/agenda/${ev.id}`}
+                      className={`absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-pointer hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${dimmed ? 'opacity-50 line-through' : ''}`}
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
@@ -201,12 +221,22 @@ export function AgendaCalendar({ mondayISO, eventos }: { mondayISO: string; even
                         background: bg,
                         borderLeft: `3px solid ${border}`,
                       }}
-                      title={`${ev.hora_inicio} – ${ev.hora_fim} · ${ev.paciente_nome}\n${ev.profissional_nome}${ev.tipo_nome ? ' · ' + ev.tipo_nome : ''}`}
+                      title={titleParts}
                     >
-                      <div className="font-bold text-[10px] truncate">{ev.hora_inicio.slice(0, 5)} – {ev.hora_fim.slice(0, 5)}</div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="font-bold text-[10px] truncate">{ev.hora_inicio.slice(0, 5)} – {ev.hora_fim.slice(0, 5)}</div>
+                        {ev.notas && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 flex-shrink-0 text-text/70" aria-label="Tem observação">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="9" y1="13" x2="15" y2="13" />
+                            <line x1="9" y1="17" x2="15" y2="17" />
+                          </svg>
+                        )}
+                      </div>
                       <div className="font-semibold text-[11px] truncate">{ev.paciente_nome}</div>
                       {ev.tipo_nome && <div className="text-[10px] opacity-70 truncate">{ev.tipo_nome}</div>}
-                    </div>
+                    </Link>
                   )
                 })}
               </div>

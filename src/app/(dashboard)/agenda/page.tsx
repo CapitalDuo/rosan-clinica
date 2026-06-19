@@ -29,7 +29,7 @@ export default async function AgendaPage({
   const supabase = await createClient()
   const { data: eventos } = await supabase
     .from('v_agenda')
-    .select('id, data, hora_inicio, hora_fim, status, paciente_nome, profissional_nome, tipo_nome, tipo_cor')
+    .select('id, data, hora_inicio, hora_fim, status, notas, paciente_nome, profissional_nome, tipo_nome, tipo_cor')
     .gte('data', isoDate(monday))
     .lte('data', isoDate(sunday))
     .order('data')
@@ -55,6 +55,7 @@ export default async function AgendaPage({
             hora_inicio: e.hora_inicio ?? '00:00',
             hora_fim: e.hora_fim ?? '00:00',
             status: e.status ?? 'agendado',
+            notas: e.notas ?? null,
             paciente_nome: e.paciente_nome ?? '—',
             profissional_nome: e.profissional_nome ?? '—',
             tipo_nome: e.tipo_nome ?? null,
