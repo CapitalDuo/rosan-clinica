@@ -27,6 +27,9 @@ type Tipo = { id: string; nome: string; cor: string; duracao_padrao: string | nu
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 const HOURS = Array.from({ length: 12 }, (_, i) => 7 + i) // 07h–18h
+const ROW_HEIGHT = 88 // px por hora — gera ar suficiente p/ eventos de 30 min mostrarem nome
+const COMPACT_THRESHOLD = 44 // px abaixo desse valor: layout 1-linha
+const SHOW_TIPO_THRESHOLD = 64 // px abaixo desse valor: oculta a linha do tipo
 
 const STATUS_COLORS: Record<string, string> = {
   agendado: '#6d5ae6',
@@ -90,10 +93,9 @@ function eventPosition(ev: AgendaEvento) {
   const end = parseHour(ev.hora_fim)
   const startMins = (start.h - HOURS[0]) * 60 + start.m
   const durMins = end.h * 60 + end.m - (start.h * 60 + start.m)
-  const ROW_HEIGHT = 64
   return {
     top: (startMins / 60) * ROW_HEIGHT,
-    height: Math.max(28, (durMins / 60) * ROW_HEIGHT - 4),
+    height: Math.max(32, (durMins / 60) * ROW_HEIGHT - 4),
   }
 }
 
@@ -194,7 +196,6 @@ export function AgendaCalendar({
   }
 
   function snapToSlot(y: number): { minutes: number; top: number } {
-    const ROW_HEIGHT = 64
     const startHour = HOURS[0]
     const minutesFromGridTop = (y / ROW_HEIGHT) * 60
     const totalMinutes = startHour * 60 + minutesFromGridTop
@@ -386,7 +387,7 @@ export function AgendaCalendar({
         <div className={`grid ${gridCols} relative`}>
           <div>
             {HOURS.map((h) => (
-              <div key={h} className="h-16 border-b border-border text-[11px] text-muted text-center pt-1">
+              <div key={h} className="border-b border-border text-[11px] text-muted text-center pt-1" style={{ height: `${ROW_HEIGHT}px` }}>
                 {String(h).padStart(2, '0')}:00
               </div>
             ))}
@@ -411,7 +412,8 @@ export function AgendaCalendar({
                     key={h}
                     type="button"
                     onClick={() => openNew(iso)}
-                    className="h-16 w-full border-b border-border block hover:bg-bg/50 transition-colors cursor-pointer"
+                    className="w-full border-b border-border block hover:bg-bg/50 transition-colors cursor-pointer"
+                    style={{ height: `${ROW_HEIGHT}px` }}
                     aria-label={`Criar consulta em ${iso} às ${String(h).padStart(2, '0')}:00`}
                   />
                 ))}
@@ -432,6 +434,8 @@ export function AgendaCalendar({
                   const leftPct = slot.col * widthPct
                   const dimmed = ev.status === 'cancelado' || ev.status === 'faltou'
                   const isDragging = draggedId === ev.id
+                  const compact = height < COMPACT_THRESHOLD
+                  const showTipo = !compact && height >= SHOW_TIPO_THRESHOLD && !!ev.tipo_nome
                   const titleParts = [
                     `${ev.hora_inicio.slice(0, 5)} – ${ev.hora_fim.slice(0, 5)} · ${ev.paciente_nome}`,
                     ev.profissional_nome,
@@ -467,7 +471,7 @@ export function AgendaCalendar({
                         setDraggedId(null)
                         setDropHint(null)
                       }}
-                      className={`absolute rounded-[8px] px-2 py-1.5 overflow-hidden text-[11px] cursor-grab active:cursor-grabbing hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${dimmed ? 'opacity-60 line-through' : ''} ${isDragging ? 'opacity-30 ring-2 ring-text/40' : ''}`}
+                      className={`absolute rounded-[8px] overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-md hover:ring-2 hover:ring-text/20 transition-all ${compact ? 'px-2 py-1' : 'px-2 py-1.5'} ${dimmed ? 'opacity-60 line-through' : ''} ${isDragging ? 'opacity-30 ring-2 ring-text/40' : ''}`}
                       style={{
                         top: `${top}px`,
                         height: `${height}px`,
@@ -478,19 +482,36 @@ export function AgendaCalendar({
                       }}
                       title={titleParts}
                     >
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="font-bold text-[10px] truncate">{ev.hora_inicio.slice(0, 5)} – {ev.hora_fim.slice(0, 5)}</div>
-                        {ev.notas && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 flex-shrink-0 text-text/70" aria-label="Tem observação">
-                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="9" y1="13" x2="15" y2="13" />
-                            <line x1="9" y1="17" x2="15" y2="17" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="font-semibold text-[11px] truncate">{ev.paciente_nome}</div>
-                      {ev.tipo_nome && <div className="text-[10px] opacity-70 truncate">{ev.tipo_nome}</div>}
+                      {compact ? (
+                        <div className="flex items-center gap-1.5 text-[11px] leading-tight h-full">
+                          <span className="font-bold text-[10.5px] flex-shrink-0">{ev.hora_inicio.slice(0, 5)}</span>
+                          <span className="font-semibold truncate flex-1">{ev.paciente_nome}</span>
+                          {ev.notas && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 flex-shrink-0 text-text/70" aria-label="Tem observação">
+                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="9" y1="13" x2="15" y2="13" />
+                              <line x1="9" y1="17" x2="15" y2="17" />
+                            </svg>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="font-bold text-[10px] truncate">{ev.hora_inicio.slice(0, 5)} – {ev.hora_fim.slice(0, 5)}</div>
+                            {ev.notas && (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 flex-shrink-0 text-text/70" aria-label="Tem observação">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="9" y1="13" x2="15" y2="13" />
+                                <line x1="9" y1="17" x2="15" y2="17" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="font-semibold text-[11.5px] leading-tight truncate mt-0.5">{ev.paciente_nome}</div>
+                          {showTipo && <div className="text-[10px] opacity-70 truncate mt-0.5">{ev.tipo_nome}</div>}
+                        </>
+                      )}
                     </div>
                   )
                 })}
