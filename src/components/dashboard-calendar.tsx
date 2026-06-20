@@ -110,7 +110,7 @@ export function DashboardCalendar({
             return (
               <Link
                 key={ev.id}
-                href={`/agenda/${ev.id}`}
+                href={`/agenda?edit=${ev.id}`}
                 className="flex items-center gap-3 bg-soft rounded-[13px] p-[11px_13px] hover:bg-border/40 transition-colors"
                 style={{ borderLeft: `3px solid ${color}` }}
               >

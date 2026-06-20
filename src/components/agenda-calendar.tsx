@@ -1,10 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@/components/icons'
 import { moveAgendamentoAction } from '@/app/(dashboard)/agenda/actions'
+import { AgendamentoModal, type AgendamentoModalMode } from '@/components/agendamento-modal'
 
 export type AgendaEvento = {
   id: string
@@ -21,10 +21,13 @@ export type AgendaEvento = {
 
 export type AgendaView = 'day' | 'week'
 
+type Paciente = { id: string; nome: string }
+type Profissional = { id: string; nome: string; especialidade: string | null }
+type Tipo = { id: string; nome: string; cor: string; duracao_padrao: string | null }
+
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 const HOURS = Array.from({ length: 12 }, (_, i) => 7 + i) // 07h–18h
 
-// Status colors — user-defined, 4 buckets covering 6 db statuses
 const STATUS_COLORS: Record<string, string> = {
   agendado: '#6d5ae6',
   confirmado: '#6d5ae6',
@@ -87,7 +90,7 @@ function eventPosition(ev: AgendaEvento) {
   const end = parseHour(ev.hora_fim)
   const startMins = (start.h - HOURS[0]) * 60 + start.m
   const durMins = end.h * 60 + end.m - (start.h * 60 + start.m)
-  const ROW_HEIGHT = 64 // px per hour
+  const ROW_HEIGHT = 64
   return {
     top: (startMins / 60) * ROW_HEIGHT,
     height: Math.max(28, (durMins / 60) * ROW_HEIGHT - 4),
@@ -119,7 +122,7 @@ function layoutDay(events: AgendaEvento[]): Map<string, { col: number; total: nu
 }
 
 function hexToBg(hex: string): string {
-  return `${hex}33` // ~20% opacity
+  return `${hex}33`
 }
 
 type DragPayload = { id: string; hora_inicio: string; hora_fim: string; data: string }
@@ -132,10 +135,16 @@ export function AgendaCalendar({
   view,
   anchorISO,
   eventos,
+  pacientes,
+  profissionais,
+  tipos,
 }: {
   view: AgendaView
   anchorISO: string
   eventos: AgendaEvento[]
+  pacientes: Paciente[]
+  profissionais: Profissional[]
+  tipos: Tipo[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -145,6 +154,44 @@ export function AgendaCalendar({
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropHint, setDropHint] = useState<{ day: string; top: number } | null>(null)
   const [isMoving, startMoveTransition] = useTransition()
+
+  const editId = searchParams.get('edit')
+  const newFlag = searchParams.get('new')
+  const newData = searchParams.get('data') ?? undefined
+
+  const modalMode: AgendamentoModalMode | null = editId
+    ? { kind: 'edit', id: editId }
+    : newFlag
+      ? { kind: 'new', data: newData }
+      : null
+
+  function preserveBaseParams() {
+    const params = new URLSearchParams()
+    const v = searchParams.get('view')
+    const d = searchParams.get('date')
+    if (v) params.set('view', v)
+    if (d) params.set('date', d)
+    return params
+  }
+
+  function openNew(date?: string) {
+    const params = preserveBaseParams()
+    params.set('new', '1')
+    if (date) params.set('data', date)
+    router.push(`/agenda?${params.toString()}`)
+  }
+
+  function openEdit(id: string) {
+    const params = preserveBaseParams()
+    params.set('edit', id)
+    router.push(`/agenda?${params.toString()}`)
+  }
+
+  function closeModal() {
+    const params = preserveBaseParams()
+    const qs = params.toString()
+    router.replace(qs ? `/agenda?${qs}` : '/agenda')
+  }
 
   function snapToSlot(y: number): { minutes: number; top: number } {
     const ROW_HEIGHT = 64
@@ -227,22 +274,25 @@ export function AgendaCalendar({
   function navigate(delta: number) {
     const step = view === 'week' ? 7 : 1
     const next = shiftDays(anchorISO, delta * step)
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams()
+    const v = searchParams.get('view')
+    if (v) params.set('view', v)
     params.set('date', next)
     router.push(`/agenda?${params.toString()}`)
   }
 
   function goToday() {
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('date')
+    const params = new URLSearchParams()
+    const v = searchParams.get('view')
+    if (v) params.set('view', v)
     router.push(`/agenda${params.toString() ? '?' + params.toString() : ''}`)
   }
 
   function setView(v: AgendaView) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams()
+    const d = searchParams.get('date')
     params.set('view', v)
-    // When switching to day mode from week, anchor on the current week's monday OR today
-    // When switching to week from day, anchor monday of the day's week
+    if (d) params.set('date', d)
     router.push(`/agenda?${params.toString()}`)
   }
 
@@ -256,6 +306,17 @@ export function AgendaCalendar({
 
   return (
     <>
+      <div className="flex items-center justify-between">
+        <h1 className="font-playfair text-[28px] font-extrabold tracking-tight">Agenda</h1>
+        <button
+          type="button"
+          onClick={() => openNew()}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-text text-white rounded-[13px] text-sm font-semibold hover:bg-[#333] transition-all hover:-translate-y-px hover:shadow-lg cursor-pointer"
+        >
+          + Nova consulta
+        </button>
+      </div>
+
       <div className="flex items-center justify-between py-6">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-[13px] border border-border bg-card flex items-center justify-center cursor-pointer hover:bg-bg transition-colors">
@@ -346,10 +407,12 @@ export function AgendaCalendar({
                 onDrop={(e) => onColumnDrop(e, iso)}
               >
                 {HOURS.map((h) => (
-                  <Link
+                  <button
                     key={h}
-                    href={`/agenda/novo?data=${iso}`}
-                    className="h-16 border-b border-border block hover:bg-bg/50 transition-colors cursor-pointer"
+                    type="button"
+                    onClick={() => openNew(iso)}
+                    className="h-16 w-full border-b border-border block hover:bg-bg/50 transition-colors cursor-pointer"
+                    aria-label={`Criar consulta em ${iso} às ${String(h).padStart(2, '0')}:00`}
                   />
                 ))}
                 {showHint && dropHint && (
@@ -377,10 +440,18 @@ export function AgendaCalendar({
                     ev.notas ? `\n📝 ${ev.notas}` : '',
                   ].filter(Boolean).join(' · ')
                   return (
-                    <Link
+                    <div
                       key={ev.id}
-                      href={`/agenda/${ev.id}`}
+                      role="button"
+                      tabIndex={0}
                       draggable
+                      onClick={() => openEdit(ev.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openEdit(ev.id)
+                        }
+                      }}
                       onDragStart={(e) => {
                         const payload: DragPayload = {
                           id: ev.id,
@@ -420,7 +491,7 @@ export function AgendaCalendar({
                       </div>
                       <div className="font-semibold text-[11px] truncate">{ev.paciente_nome}</div>
                       {ev.tipo_nome && <div className="text-[10px] opacity-70 truncate">{ev.tipo_nome}</div>}
-                    </Link>
+                    </div>
                   )
                 })}
               </div>
@@ -439,6 +510,16 @@ export function AgendaCalendar({
         <div className="mt-5 text-center text-sm text-muted">
           Nenhum agendamento {view === 'day' ? 'neste dia' : 'nesta semana'}. Clique num horário pra criar.
         </div>
+      )}
+
+      {modalMode && (
+        <AgendamentoModal
+          mode={modalMode}
+          onClose={closeModal}
+          pacientes={pacientes}
+          profissionais={profissionais}
+          tipos={tipos}
+        />
       )}
     </>
   )

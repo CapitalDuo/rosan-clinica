@@ -1,6 +1,5 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
@@ -43,7 +42,7 @@ export async function createAgendamentoAction(formData: FormData) {
 
   revalidatePath('/agenda')
   revalidatePath('/')
-  redirect('/agenda')
+  return { ok: true as const }
 }
 
 export async function updateAgendamentoAction(id: string, formData: FormData) {
@@ -84,7 +83,7 @@ export async function updateAgendamentoAction(id: string, formData: FormData) {
   revalidatePath('/agenda')
   revalidatePath('/')
   revalidatePath(`/agenda/${id}`)
-  redirect('/agenda')
+  return { ok: true as const }
 }
 
 export async function deleteAgendamentoAction(id: string) {
@@ -94,7 +93,19 @@ export async function deleteAgendamentoAction(id: string) {
 
   revalidatePath('/agenda')
   revalidatePath('/')
-  redirect('/agenda')
+  return { ok: true as const }
+}
+
+export async function getAgendamentoAction(id: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('agendamentos')
+    .select('id, paciente_id, profissional_id, tipo_consulta_id, data, hora_inicio, hora_fim, status, notas, valor')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) return { ok: false as const, error: error.message }
+  if (!data) return { ok: false as const, error: 'Consulta não encontrada' }
+  return { ok: true as const, agendamento: data }
 }
 
 // Used by drag-and-drop to move an appointment to a new slot, preserving its duration
