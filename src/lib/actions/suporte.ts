@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 export async function createTicketAction(formData: FormData) {
   const assunto = String(formData.get('assunto') ?? '').trim()
@@ -17,6 +18,9 @@ export async function createTicketAction(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, error: 'Não autenticado' }
+
+  const rl = await checkRateLimit('ticket', user.id)
+  if (!rl.ok) return { ok: false as const, error: rl.error }
 
   const { data: prof } = await supabase
     .from('profissionais')
@@ -70,6 +74,9 @@ export async function addMensagemAction(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, error: 'Não autenticado' }
+
+  const rl = await checkRateLimit('message', user.id)
+  if (!rl.ok) return { ok: false as const, error: rl.error }
 
   const { data: mensagem, error } = await supabase
     .from('suporte_mensagens')

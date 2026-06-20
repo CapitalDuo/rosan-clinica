@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 export async function createAgendamentoAction(formData: FormData) {
   const paciente_id = String(formData.get('paciente_id') ?? '')
@@ -23,6 +24,9 @@ export async function createAgendamentoAction(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, error: 'Não autenticado' }
+
+  const rl = await checkRateLimit('write', user.id)
+  if (!rl.ok) return { ok: false as const, error: rl.error }
 
   const valor = valor_raw ? Number(valor_raw.replace(',', '.')) : null
 

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 const PALETTE = ['#b8a88a', '#8ab89b', '#a88ab8', '#8a8ab8', '#b88a8a', '#8ab8b8', '#b8b88a']
 
@@ -38,6 +39,9 @@ export async function createPacienteAction(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, error: 'Não autenticado' }
+
+  const rl = await checkRateLimit('write', user.id)
+  if (!rl.ok) return { ok: false as const, error: rl.error }
 
   const { data: prof } = await supabase
     .from('profissionais')

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { addMensagemAction, updateTicketStatusAction } from '@/app/suporte/actions'
+import { addMensagemAction, updateTicketStatusAction } from '@/lib/actions/suporte'
 
 type Mensagem = {
   id: string

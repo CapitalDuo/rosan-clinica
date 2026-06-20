@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createTicketAction } from '@/app/suporte/actions'
+import { createTicketAction } from '@/lib/actions/suporte'
 
 const CATEGORIAS = [
   { value: 'geral', label: 'Geral' },
