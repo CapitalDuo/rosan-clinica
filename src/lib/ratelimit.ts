@@ -24,7 +24,7 @@ function buildLimiter(window: `${number} ${'s' | 'ms' | 'm' | 'h' | 'd'}`, reque
     redis,
     limiter: Ratelimit.slidingWindow(requests, window),
     analytics: false,
-    prefix: 'rosan',
+    prefix: 'useclin',
   })
 }
 

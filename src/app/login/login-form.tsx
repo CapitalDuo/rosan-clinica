@@ -28,8 +28,8 @@ export function LoginForm({ next, initialError }: { next: string; initialError?:
           <path d="M15 22 Q17.5 26, 20 22 Q22.5 26, 25 22" stroke="#d4c5a9" strokeWidth="1" fill="none" />
         </svg>
         <div>
-          <span className="font-playfair text-xl font-extrabold tracking-tight">Rosan</span>
-          <span className="text-[9px] font-semibold text-muted tracking-[2px] uppercase block -mt-0.5">Clínica Integrativa</span>
+          <span className="font-playfair text-xl font-extrabold tracking-tight">Useclin</span>
+          <span className="text-[9px] font-semibold text-muted tracking-[2px] uppercase block -mt-0.5">Gestão de Clínicas</span>
         </div>
       </div>
 

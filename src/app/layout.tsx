@@ -14,8 +14,8 @@ const newsreader = Newsreader({
 })
 
 export const metadata = {
-  title: 'Rosan — Clínica Integrativa',
-  description: 'Sistema de gestão para clínicas médicas',
+  title: 'Useclin — Gestão de Clínicas',
+  description: 'Sistema de gestão para clínicas',
 }
 
 export default function RootLayout({

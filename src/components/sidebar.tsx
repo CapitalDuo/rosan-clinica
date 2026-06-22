@@ -43,8 +43,8 @@ export function Sidebar({
           <LeafIcon className="w-5 h-5 text-[#a9925a]" />
         </div>
         <div>
-          <div className="font-newsreader text-[23px] font-semibold text-text leading-none">Rosan</div>
-          <div className="text-[9px] font-bold tracking-[0.18em] text-[#a8a59d] mt-1">CLÍNICA INTEGRATIVA</div>
+          <div className="font-newsreader text-[23px] font-semibold text-text leading-none">Useclin</div>
+          <div className="text-[9px] font-bold tracking-[0.18em] text-[#a8a59d] mt-1">GESTÃO DE CLÍNICAS</div>
         </div>
       </div>
 
