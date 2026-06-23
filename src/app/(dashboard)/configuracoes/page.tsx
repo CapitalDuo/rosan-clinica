@@ -53,7 +53,7 @@ export default async function ConfiguracoesPage() {
       .eq('clinica_id', prof.clinica_id),
     supabase
       .from('whatsapp_instancias')
-      .select('id, nome_instancia, numero, status')
+      .select('id, nome_instancia, numero, status, api_key')
       .eq('clinica_id', prof.clinica_id)
       .order('created_at', { ascending: false })
       .limit(1)

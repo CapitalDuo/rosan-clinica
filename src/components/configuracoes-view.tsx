@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   updateClinicaAction,
   updateHorariosAction,
-  upsertWhatsappAction,
+  criarConexaoWhatsappAction,
+  verificarStatusWhatsappAction,
   updateMeuPerfilAction,
   toggleNotificacaoAction,
   type NotificacaoTipo,
@@ -43,6 +44,7 @@ export type WhatsappInstancia = {
   nome_instancia: string
   numero: string
   status: string
+  api_key: string | null
 } | null
 
 export type Notificacoes = Record<NotificacaoTipo, boolean>
@@ -538,40 +540,150 @@ function HorariosModal({ initial, onClose }: { initial: HorarioRow[]; onClose: (
 // WhatsApp modal
 // -----------------------------------------------------------------------------
 
+type WhatsappStep = 'form' | 'loading' | 'qr' | 'connected'
+
 function WhatsappModal({ initial, onClose }: { initial: WhatsappInstancia; onClose: () => void }) {
   const router = useRouter()
-  const [pending, setPending] = useState(false)
+  const [step, setStep] = useState<WhatsappStep>('form')
   const [error, setError] = useState<string | null>(null)
+  const [qrcode, setQrcode] = useState<string | null>(null)
+  const [instToken, setInstToken] = useState<string | null>(null)
 
   useEscClose(onClose)
 
+  useEffect(() => {
+    if (step !== 'qr' || !instToken) return
+    const id = setInterval(async () => {
+      const res = await verificarStatusWhatsappAction(instToken)
+      if (res.connected) {
+        clearInterval(id)
+        setStep('connected')
+        router.refresh()
+        setTimeout(onClose, 2200)
+      }
+    }, 4000)
+    return () => clearInterval(id)
+  }, [step, instToken, router, onClose])
+
   async function handleSubmit(formData: FormData) {
-    setPending(true)
+    setStep('loading')
     setError(null)
-    const result = await upsertWhatsappAction(formData)
+    const result = await criarConexaoWhatsappAction(formData)
     if (!result.ok) {
-      setPending(false)
+      setStep('form')
       setError(result.error)
       return
     }
-    router.refresh()
-    onClose()
+    setQrcode(result.qrcode)
+    setInstToken(result.token)
+    setStep('qr')
   }
 
+  const title =
+    step === 'connected' ? 'WhatsApp conectado!'
+    : step === 'qr' ? 'Escaneie o QR Code'
+    : initial ? 'Reconectar WhatsApp'
+    : 'Configurar WhatsApp'
+
+  const subtitle =
+    step === 'qr'
+      ? 'Abra o WhatsApp → Dispositivos conectados → Conectar dispositivo'
+      : 'Cria a instância na UAZAPI e salva automaticamente'
+
   return (
-    <ModalShell title={initial ? 'Editar WhatsApp' : 'Configurar WhatsApp'} subtitle="Conecte seu WhatsApp ao sistema" onClose={onClose}>
-      <form action={handleSubmit} className="px-7 py-6 flex flex-col gap-5">
-        <input type="hidden" name="id" value={initial?.id ?? ''} />
+    <ModalShell title={title} subtitle={subtitle} onClose={onClose}>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Nome *" name="nome_instancia" defaultValue={initial?.nome_instancia ?? ''} placeholder="ex: rosan-clinica" required />
-          <Field label="Número (com DDD e país) *" name="numero" defaultValue={initial?.numero ?? ''} placeholder="5564999999999" required />
+      {/* ── Form / Loading ── */}
+      {(step === 'form' || step === 'loading') && (
+        <form action={handleSubmit} className="px-7 py-6 flex flex-col gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Nome da instância *"
+              name="nome_instancia"
+              defaultValue={initial?.nome_instancia ?? ''}
+              placeholder="ex: useclin-clinica"
+              required
+            />
+            <Field
+              label="Número (DDD + país) *"
+              name="numero"
+              defaultValue={initial?.numero ?? ''}
+              placeholder="5564999999999"
+              required
+            />
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 block">
+                Admin Token UAZAPI *
+              </label>
+              <input
+                name="admintoken"
+                type="password"
+                required
+                autoComplete="off"
+                placeholder="Token administrativo do painel UAZAPI"
+                className="w-full px-4 py-3 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
+              />
+              <p className="text-[10px] text-muted mt-1.5">
+                Painel UAZAPI → Configurações → Admin Token. Usado apenas para criar a instância.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>
+          )}
+
+          <ModalFooter
+            onClose={onClose}
+            pending={step === 'loading'}
+            submitLabel={
+              step === 'loading' ? 'Criando instância…' : initial ? 'Reconectar' : 'Criar e conectar'
+            }
+          />
+        </form>
+      )}
+
+      {/* ── QR Code ── */}
+      {step === 'qr' && (
+        <div className="px-7 py-8 flex flex-col items-center gap-5">
+          {qrcode ? (
+            <img
+              src={qrcode.startsWith('data:') ? qrcode : `data:image/png;base64,${qrcode}`}
+              alt="QR Code WhatsApp"
+              className="w-52 h-52 rounded-[14px] border border-border"
+            />
+          ) : (
+            <div className="w-52 h-52 rounded-[14px] bg-bg border border-border flex items-center justify-center text-xs text-muted">
+              QR não disponível
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span className="inline-block w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+            Aguardando scan…
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs text-muted hover:text-text underline transition-colors cursor-pointer"
+          >
+            Fechar (instância salva, mas ainda não conectada)
+          </button>
         </div>
+      )}
 
-        {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
+      {/* ── Connected ── */}
+      {step === 'connected' && (
+        <div className="px-7 py-10 flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-[#f0fdf4] flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2fb98a" strokeWidth="2.5" className="w-8 h-8">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-text">WhatsApp conectado com sucesso!</p>
+          <p className="text-xs text-muted">Fechando automaticamente…</p>
+        </div>
+      )}
 
-        <ModalFooter onClose={onClose} pending={pending} submitLabel={initial ? 'Salvar alterações' : 'Cadastrar instância'} />
-      </form>
     </ModalShell>
   )
 }

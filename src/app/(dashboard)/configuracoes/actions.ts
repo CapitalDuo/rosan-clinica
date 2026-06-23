@@ -85,42 +85,80 @@ export async function updateHorariosAction(formData: FormData) {
   return { ok: true as const }
 }
 
-export async function upsertWhatsappAction(formData: FormData) {
+export async function criarConexaoWhatsappAction(formData: FormData): Promise<
+  | { ok: false; error: string }
+  | { ok: true; qrcode: string | null; token: string | null; instancia_id: string | null }
+> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { ok: false as const, error: 'Não autenticado' }
+  if (!user) return { ok: false, error: 'Não autenticado' }
 
   const { prof } = await clinicaIdOf(user.id)
-  if (!prof?.clinica_id) return { ok: false as const, error: 'Conta sem clínica vinculada' }
+  if (!prof?.clinica_id) return { ok: false, error: 'Conta sem clínica vinculada' }
 
-  const id = String(formData.get('id') ?? '').trim()
   const nome_instancia = String(formData.get('nome_instancia') ?? '').trim()
   const numero = String(formData.get('numero') ?? '').trim()
+  const admintoken = String(formData.get('admintoken') ?? '').trim()
 
-  if (!nome_instancia || !numero) {
-    return { ok: false as const, error: 'Nome da instância e número são obrigatórios' }
+  if (!nome_instancia || !numero || !admintoken) {
+    return { ok: false, error: 'Nome, número e Admin Token são obrigatórios' }
   }
 
-  if (id) {
-    const { error } = await supabase
-      .from('whatsapp_instancias')
-      .update({ nome_instancia, numero })
-      .eq('id', id)
-    if (error) return { ok: false as const, error: error.message }
-  } else {
-    const { error } = await supabase.from('whatsapp_instancias').insert({
-      clinica_id: prof.clinica_id,
-      nome_instancia,
-      numero,
-      status: 'desconectado',
+  const webhookUrl = process.env.N8N_WEBHOOK_URL
+  if (!webhookUrl) return { ok: false, error: 'N8N_WEBHOOK_URL não configurado no servidor' }
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        acao: 'criar',
+        instanceName: nome_instancia,
+        numero,
+        admintoken,
+        clinica_id: prof.clinica_id,
+      }),
     })
-    if (error) return { ok: false as const, error: error.message }
-  }
 
-  revalidatePath('/configuracoes')
-  return { ok: true as const }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return { ok: false, error: `Erro UAZAPI (${res.status}): ${text.slice(0, 200)}` }
+    }
+
+    const data = await res.json()
+    revalidatePath('/configuracoes')
+    return {
+      ok: true,
+      qrcode: data.qrcode ?? null,
+      token: data.token ?? null,
+      instancia_id: data.instancia_id ?? null,
+    }
+  } catch {
+    return { ok: false, error: 'Falha ao conectar com o servidor de automação' }
+  }
+}
+
+export async function verificarStatusWhatsappAction(token: string): Promise<{
+  connected: boolean
+  state: string
+}> {
+  const webhookUrl = process.env.N8N_WEBHOOK_URL
+  if (!webhookUrl) return { connected: false, state: 'erro' }
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao: 'status', token }),
+    })
+    if (!res.ok) return { connected: false, state: 'erro' }
+    const data = await res.json()
+    return { connected: !!data.connected, state: data.state ?? 'close' }
+  } catch {
+    return { connected: false, state: 'erro' }
+  }
 }
 
 export async function updateMeuPerfilAction(formData: FormData) {
