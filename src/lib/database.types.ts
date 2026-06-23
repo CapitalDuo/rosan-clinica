@@ -72,6 +72,11 @@ export type Database = {
           nome: string
           onboarding_completo: boolean
           onboarding_step: number
+          plano_periodo_fim: string | null
+          plano_slug: string
+          plano_status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           subtitulo: string | null
           telefone: string | null
           updated_at: string
@@ -87,6 +92,11 @@ export type Database = {
           nome: string
           onboarding_completo?: boolean
           onboarding_step?: number
+          plano_periodo_fim?: string | null
+          plano_slug?: string
+          plano_status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           subtitulo?: string | null
           telefone?: string | null
           updated_at?: string
@@ -102,6 +112,11 @@ export type Database = {
           nome?: string
           onboarding_completo?: boolean
           onboarding_step?: number
+          plano_periodo_fim?: string | null
+          plano_slug?: string
+          plano_status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           subtitulo?: string | null
           telefone?: string | null
           updated_at?: string

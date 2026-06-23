@@ -2,7 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '../database.types'
 
-const PUBLIC_PATHS = ['/login', '/auth']
+// /api/stripe/webhook é chamado server-to-server pela Stripe (sem cookie de
+// sessão), então precisa ficar fora do gate de auth — a própria rota valida
+// a requisição pela assinatura do webhook.
+const PUBLIC_PATHS = ['/login', '/auth', '/api/stripe/webhook']
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request })

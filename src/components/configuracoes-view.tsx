@@ -22,6 +22,9 @@ export type Clinica = {
   endereco: string | null
   logo_url: string | null
   maps_url: string | null
+  plano_slug: string
+  plano_status: string
+  plano_periodo_fim: string | null
 }
 
 export type Profissional = {
@@ -176,42 +179,166 @@ export function ConfiguracoesView({
       </SectionCard>
 
       <SectionCard title="Plano">
-        <div className="py-3 flex flex-col gap-4">
-          {/* Plan card */}
-          <div className="flex items-center gap-4 px-4 py-4 rounded-[13px] border border-border bg-bg">
-            <div className="w-10 h-10 rounded-[11px] bg-[#f1eefb] flex items-center justify-center flex-shrink-0">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#5b4bd4" strokeWidth="1.8" className="w-5 h-5">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                <path d="M9 14l-2 6 5-2 5 2-2-6" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-bold text-text">Plano Gratuito</div>
-              <div className="text-xs text-muted mt-0.5">3 consultas/mês</div>
-            </div>
-            <span className="px-3 py-1 rounded-full bg-[#f1eefb] text-[#5b4bd4] text-[11px] font-semibold tracking-wide flex-shrink-0">
-              ATIVO
-            </span>
-          </div>
-
-          {/* Usage bar */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted">Uso este mês</span>
-              <span className="text-sm font-semibold text-[#5b4bd4]">0 / 3</span>
-            </div>
-            <div className="h-2 bg-border rounded-full overflow-hidden">
-              <div className="h-full bg-[#5b4bd4] rounded-full transition-all" style={{ width: '0%' }} />
-            </div>
-          </div>
-        </div>
+        <PlanCard plano_slug={clinica.plano_slug} plano_status={clinica.plano_status} plano_periodo_fim={clinica.plano_periodo_fim} />
       </SectionCard>
 
       {editKind === 'clinica' && <ClinicaModal clinica={clinica} onClose={closeModal} />}
       {editKind === 'horarios' && <HorariosModal initial={horarios} onClose={closeModal} />}
       {editKind === 'whatsapp' && <WhatsappModal initial={whatsapp} onClose={closeModal} />}
       {editKind === 'meu-perfil' && <MeuPerfilModal profissional={profissional} onClose={closeModal} />}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Plan card
+// -----------------------------------------------------------------------------
+
+const PLAN_INFO: Record<string, { nome: string; descricao: string; cor: string; bg: string }> = {
+  gratuito: { nome: 'Gratuito', descricao: 'Acesso básico à plataforma', cor: '#6f6c67', bg: '#f0efed' },
+  basico:   { nome: 'Básico',   descricao: 'Agenda, Pacientes e Financeiro', cor: '#5b4bd4', bg: '#f1eefb' },
+  completo: { nome: 'Completo', descricao: 'Tudo + WhatsApp e Agente de IA', cor: '#2fb98a', bg: '#eaf8f3' },
+}
+
+function PlanCard({ plano_slug, plano_status, plano_periodo_fim }: {
+  plano_slug: string
+  plano_status: string
+  plano_periodo_fim: string | null
+}) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const justUpgraded = searchParams.get('upgrade') === 'success'
+  const [loading, setLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const info = PLAN_INFO[plano_slug] ?? PLAN_INFO.gratuito
+  const isPastDue = plano_status === 'past_due'
+  const isCanceled = plano_status === 'cancelado'
+
+  // Ao voltar do checkout, o webhook pode levar alguns segundos para gravar o
+  // novo plano. Atualiza a página uma vez para refletir a mudança.
+  useEffect(() => {
+    if (!justUpgraded) return
+    const t = setTimeout(() => router.refresh(), 3000)
+    return () => clearTimeout(t)
+  }, [justUpgraded, router])
+
+  async function goToCheckout(plano: 'basico' | 'completo') {
+    setLoading(plano)
+    setError(null)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plano }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.updated) {
+        // Troca de plano aplicada na assinatura existente — recarrega.
+        router.refresh()
+        setLoading(null)
+      } else {
+        setError(data.error ?? 'Não foi possível iniciar o pagamento.')
+        setLoading(null)
+      }
+    } catch {
+      setError('Erro de conexão. Tente novamente.')
+      setLoading(null)
+    }
+  }
+
+  async function goToPortal() {
+    setLoading('portal')
+    setError(null)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+      else {
+        setError(data.error ?? 'Não foi possível abrir o portal.')
+        setLoading(null)
+      }
+    } catch {
+      setError('Erro de conexão. Tente novamente.')
+      setLoading(null)
+    }
+  }
+
+  return (
+    <div className="py-3 flex flex-col gap-4">
+      {justUpgraded && plano_slug === 'gratuito' && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[13px] bg-[#eaf8f3] border border-[#2fb98a]/30 text-sm text-[#1c8b66]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          Pagamento confirmado! Seu plano será ativado em instantes…
+        </div>
+      )}
+      {isPastDue && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-[13px] bg-[#fff8f0] border border-[#f5a623]/30 text-sm text-[#b87a00]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Pagamento pendente. Atualize seu método de pagamento para continuar.
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 px-4 py-4 rounded-[13px] border border-border bg-bg">
+        <div className="w-10 h-10 rounded-[11px] flex items-center justify-center flex-shrink-0" style={{ background: info.bg }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke={info.cor} strokeWidth="1.8" className="w-5 h-5">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[14px] font-bold text-text">Plano {info.nome}</div>
+          <div className="text-xs text-muted mt-0.5">{info.descricao}</div>
+          {plano_periodo_fim && !isCanceled && (
+            <div className="text-xs text-muted mt-0.5">
+              Renova em {new Date(plano_periodo_fim).toLocaleDateString('pt-BR')}
+            </div>
+          )}
+        </div>
+        <span className="px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide flex-shrink-0"
+          style={{ background: info.bg, color: info.cor }}>
+          {isCanceled ? 'CANCELADO' : isPastDue ? 'INADIMPLENTE' : 'ATIVO'}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {plano_slug === 'gratuito' && (
+          <>
+            <button onClick={() => goToCheckout('basico')} disabled={loading !== null}
+              className="w-full px-5 py-3 rounded-[13px] border border-[#5b4bd4] text-[#5b4bd4] text-sm font-semibold hover:bg-[#f1eefb] transition-colors cursor-pointer disabled:opacity-50">
+              {loading === 'basico' ? 'Redirecionando…' : 'Assinar Básico — R$ 247/mês'}
+            </button>
+            <button onClick={() => goToCheckout('completo')} disabled={loading !== null}
+              className="w-full px-5 py-3 rounded-[13px] bg-[#5b4bd4] text-white text-sm font-semibold hover:bg-[#4a3cb8] transition-colors cursor-pointer disabled:opacity-50">
+              {loading === 'completo' ? 'Redirecionando…' : 'Assinar Completo — R$ 349/mês'}
+            </button>
+          </>
+        )}
+        {plano_slug === 'basico' && (
+          <>
+            <button onClick={() => goToCheckout('completo')} disabled={loading !== null}
+              className="w-full px-5 py-3 rounded-[13px] bg-[#5b4bd4] text-white text-sm font-semibold hover:bg-[#4a3cb8] transition-colors cursor-pointer disabled:opacity-50">
+              {loading === 'completo' ? 'Redirecionando…' : 'Upgrade para Completo — R$ 349/mês'}
+            </button>
+            <button onClick={goToPortal} disabled={loading !== null}
+              className="w-full px-5 py-3 rounded-[13px] border border-border text-sm font-semibold text-muted hover:text-text hover:bg-bg transition-colors cursor-pointer disabled:opacity-50">
+              {loading === 'portal' ? 'Abrindo portal…' : 'Gerenciar assinatura'}
+            </button>
+          </>
+        )}
+        {plano_slug === 'completo' && (
+          <button onClick={goToPortal} disabled={loading !== null}
+            className="w-full px-5 py-3 rounded-[13px] border border-border text-sm font-semibold text-muted hover:text-text hover:bg-bg transition-colors cursor-pointer disabled:opacity-50">
+            {loading === 'portal' ? 'Abrindo portal…' : 'Gerenciar assinatura'}
+          </button>
+        )}
+        {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
+      </div>
     </div>
   )
 }
