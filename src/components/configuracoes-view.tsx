@@ -200,6 +200,28 @@ const PLAN_INFO: Record<string, { nome: string; descricao: string; cor: string; 
   completo: { nome: 'Completo', descricao: 'Tudo + WhatsApp e Agente de IA', cor: '#2fb98a', bg: '#eaf8f3' },
 }
 
+const PLAN_CARDS: {
+  slug: 'basico' | 'completo'
+  nome: string
+  preco: string
+  destaque?: boolean
+  features: string[]
+}[] = [
+  {
+    slug: 'basico',
+    nome: 'Básico',
+    preco: '247',
+    features: ['Dashboard', 'Agenda', 'Pacientes', 'Suporte direto da plataforma'],
+  },
+  {
+    slug: 'completo',
+    nome: 'Completo',
+    preco: '349',
+    destaque: true,
+    features: ['Tudo do Básico', 'Atendimento com cliente direto da plataforma', 'Agente de IA integrado'],
+  },
+]
+
 function PlanCard({ plano_slug, plano_status, plano_periodo_fim }: {
   plano_slug: string
   plano_status: string
@@ -306,39 +328,67 @@ function PlanCard({ plano_slug, plano_status, plano_periodo_fim }: {
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {plano_slug === 'gratuito' && (
-          <>
-            <button onClick={() => goToCheckout('basico')} disabled={loading !== null}
-              className="w-full px-5 py-3 rounded-[13px] border border-[#5b4bd4] text-[#5b4bd4] text-sm font-semibold hover:bg-[#f1eefb] transition-colors cursor-pointer disabled:opacity-50">
-              {loading === 'basico' ? 'Redirecionando…' : 'Assinar Básico — R$ 247/mês'}
-            </button>
-            <button onClick={() => goToCheckout('completo')} disabled={loading !== null}
-              className="w-full px-5 py-3 rounded-[13px] bg-[#5b4bd4] text-white text-sm font-semibold hover:bg-[#4a3cb8] transition-colors cursor-pointer disabled:opacity-50">
-              {loading === 'completo' ? 'Redirecionando…' : 'Assinar Completo — R$ 349/mês'}
-            </button>
-          </>
-        )}
-        {plano_slug === 'basico' && (
-          <>
-            <button onClick={() => goToCheckout('completo')} disabled={loading !== null}
-              className="w-full px-5 py-3 rounded-[13px] bg-[#5b4bd4] text-white text-sm font-semibold hover:bg-[#4a3cb8] transition-colors cursor-pointer disabled:opacity-50">
-              {loading === 'completo' ? 'Redirecionando…' : 'Upgrade para Completo — R$ 349/mês'}
-            </button>
-            <button onClick={goToPortal} disabled={loading !== null}
-              className="w-full px-5 py-3 rounded-[13px] border border-border text-sm font-semibold text-muted hover:text-text hover:bg-bg transition-colors cursor-pointer disabled:opacity-50">
-              {loading === 'portal' ? 'Abrindo portal…' : 'Gerenciar assinatura'}
-            </button>
-          </>
-        )}
-        {plano_slug === 'completo' && (
-          <button onClick={goToPortal} disabled={loading !== null}
-            className="w-full px-5 py-3 rounded-[13px] border border-border text-sm font-semibold text-muted hover:text-text hover:bg-bg transition-colors cursor-pointer disabled:opacity-50">
-            {loading === 'portal' ? 'Abrindo portal…' : 'Gerenciar assinatura'}
-          </button>
-        )}
-        {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {PLAN_CARDS.map((p) => {
+          const isCurrent = plano_slug === p.slug
+          let ctaLabel: string
+          if (isCurrent) ctaLabel = 'Plano atual'
+          else if (plano_slug === 'completo' && p.slug === 'basico') ctaLabel = 'Mudar para Básico'
+          else if (plano_slug === 'basico' && p.slug === 'completo') ctaLabel = 'Fazer upgrade'
+          else ctaLabel = `Assinar ${p.nome}`
+
+          return (
+            <div
+              key={p.slug}
+              className={`relative flex flex-col rounded-[14px] border p-5 ${
+                p.destaque ? 'border-[#5b4bd4] bg-[#faf9ff]' : 'border-border bg-bg'
+              }`}
+            >
+              {p.destaque && (
+                <span className="absolute -top-2.5 left-5 px-2.5 py-0.5 rounded-full bg-[#5b4bd4] text-white text-[10px] font-bold tracking-wide">
+                  RECOMENDADO
+                </span>
+              )}
+              <div className="text-[15px] font-bold text-text">{p.nome}</div>
+              <div className="mt-1 mb-3">
+                <span className="text-[24px] font-extrabold text-text">R$ {p.preco}</span>
+                <span className="text-xs text-muted">/mês</span>
+              </div>
+              <ul className="flex flex-col gap-2 mb-4 flex-1">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-[13px] text-muted">
+                    <svg viewBox="0 0 24 24" fill="none" stroke={p.destaque ? '#5b4bd4' : '#2fb98a'} strokeWidth="2.5" className="w-4 h-4 flex-shrink-0 mt-0.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => goToCheckout(p.slug)}
+                disabled={isCurrent || loading !== null}
+                className={`w-full px-4 py-2.5 rounded-[11px] text-sm font-semibold transition-colors disabled:cursor-default ${
+                  isCurrent
+                    ? 'bg-bg border border-border text-muted'
+                    : p.destaque
+                      ? 'bg-[#5b4bd4] text-white hover:bg-[#4a3cb8] cursor-pointer disabled:opacity-50'
+                      : 'border border-[#5b4bd4] text-[#5b4bd4] hover:bg-[#f1eefb] cursor-pointer disabled:opacity-50'
+                }`}
+              >
+                {loading === p.slug ? 'Aguarde…' : ctaLabel}
+              </button>
+            </div>
+          )
+        })}
       </div>
+
+      {plano_slug !== 'gratuito' && (
+        <button onClick={goToPortal} disabled={loading !== null}
+          className="w-full px-5 py-3 rounded-[13px] border border-border text-sm font-semibold text-muted hover:text-text hover:bg-bg transition-colors cursor-pointer disabled:opacity-50">
+          {loading === 'portal' ? 'Abrindo portal…' : 'Gerenciar assinatura'}
+        </button>
+      )}
+      {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
     </div>
   )
 }
