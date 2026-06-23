@@ -6,6 +6,11 @@ import { SearchIcon, CalendarIcon, ChatIcon, SendIcon, PaperclipIcon, SmileIcon 
 import {
   criarConexaoWhatsappAction,
   verificarStatusWhatsappAction,
+  buscarChatsAction,
+  buscarMensagensAction,
+  enviarMensagemAction,
+  type WaChat,
+  type WaMessage,
 } from '@/app/(dashboard)/configuracoes/actions'
 
 export type WhatsappInfo = {
@@ -19,51 +24,6 @@ export type WhatsappInfo = {
 
 type ConnectionStatus = 'disconnected' | 'scanning' | 'connected'
 
-interface Patient {
-  initials: string
-  name: string
-  color: string
-  lastVisit: string
-  age: string
-  visits: string
-  since: string
-  tel: string
-  nasc: string
-  gasto: string
-  prox: string
-  obs: string
-}
-
-const patients: Patient[] = [
-  { initials: 'MC', name: 'Mariana Costa', color: 'bg-[#b8a88a]', lastVisit: 'Último: 18/05 · Limpeza', age: '32 anos', visits: '12 atendimentos', since: 'Cliente desde Mar/2024', tel: '(11) 98234-5678', nasc: '15/03/1994', gasto: 'R$ 2.340', prox: '24/05/2026 · 09:00', obs: 'Alergia a níquel. Pele sensível. Prefere horários matutinos.' },
-  { initials: 'FL', name: 'Fernanda Lima', color: 'bg-[#8ab89b]', lastVisit: 'Último: 18/05 · Harmonização', age: '28 anos', visits: '8 atendimentos', since: 'Cliente desde Jun/2024', tel: '(11) 97654-3210', nasc: '22/07/1997', gasto: 'R$ 1.890', prox: '26/05/2026 · 14:00', obs: 'Procedimentos de harmonização facial em andamento. Sem alergias conhecidas.' },
-  { initials: 'JR', name: 'Juliana Rocha', color: 'bg-[#a88ab8]', lastVisit: 'Último: 15/05 · Massagem', age: '35 anos', visits: '5 atendimentos', since: 'Cliente desde Jan/2025', tel: '(11) 96543-8765', nasc: '10/11/1990', gasto: 'R$ 980', prox: '28/05/2026 · 10:00', obs: 'Prefere massagens relaxantes. Tensão muscular crônica na região cervical.' },
-  { initials: 'AO', name: 'Ana Oliveira', color: 'bg-[#b88a8a]', lastVisit: 'Último: 10/05 · Nutricional', age: '41 anos', visits: '15 atendimentos', since: 'Cliente desde Set/2023', tel: '(11) 95432-1098', nasc: '03/05/1985', gasto: 'R$ 4.120', prox: '30/05/2026 · 11:00', obs: 'Acompanhamento nutricional. Intolerância a lactose. Dieta vegetariana.' },
-  { initials: 'BT', name: 'Bianca Torres', color: 'bg-[#8ab8b8]', lastVisit: 'Último: 18/05 · Peeling', age: '26 anos', visits: '3 atendimentos', since: 'Cliente desde Abr/2026', tel: '(11) 94321-6789', nasc: '18/09/1999', gasto: 'R$ 650', prox: '01/06/2026 · 09:00', obs: 'Tratamento de peeling para manchas solares. Pele oleosa.' },
-  { initials: 'RM', name: 'Roberta Mendes', color: 'bg-[#b8b88a]', lastVisit: 'Último: 16/05 · Drenagem', age: '38 anos', visits: '9 atendimentos', since: 'Cliente desde Nov/2024', tel: '(11) 93210-5432', nasc: '25/01/1988', gasto: 'R$ 2.100', prox: '27/05/2026 · 16:00', obs: 'Drenagem linfática semanal. Retenção hídrica. Prefere horários à tarde.' },
-]
-
-interface Message {
-  sender: 'doctor' | 'patient'
-  text: string
-  time: string
-}
-
-const initialMessages: Message[] = [
-  { sender: 'doctor', text: 'Olá Mariana! Tudo bem?\nSó lembrando do seu agendamento de limpeza facial amanhã às 09:00.', time: '20/05/2026 · 10:32' },
-  { sender: 'patient', text: 'Oi! Tudo bem sim, obrigada por lembrar 😊\nConfirmo minha presença.', time: '20/05/2026 · 10:45' },
-  { sender: 'doctor', text: 'Perfeito! Qualquer dúvida, estou à disposição.', time: '20/05/2026 · 10:46' },
-  { sender: 'patient', text: 'Obrigada! Até amanhã 🙌', time: '20/05/2026 · 10:47' },
-]
-
-const historyItems = [
-  { title: 'Limpeza de pele', doctor: 'Dr. Rodrigo Alves', date: '18/05/2026', dot: 'bg-blue' },
-  { title: 'Avaliação facial', doctor: 'Dr. Rodrigo Alves', date: '02/05/2026', dot: 'bg-green' },
-  { title: 'Consulta de retorno', doctor: 'Dr. Rodrigo Alves', date: '15/04/2026', dot: 'bg-blue' },
-  { title: 'Peeling químico', doctor: 'Dra. Amanda Costa', date: '20/03/2026', dot: 'bg-orange' },
-  { title: 'Avaliação inicial', doctor: 'Dr. Rodrigo Alves', date: '10/03/2024', dot: 'bg-green' },
-]
-
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -71,6 +31,57 @@ function WhatsAppIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+function ChatAvatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'lg' }) {
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('') || '?'
+  const palette = ['bg-[#b8a88a]', 'bg-[#8ab89b]', 'bg-[#a88ab8]', 'bg-[#b88a8a]', 'bg-[#8ab8b8]', 'bg-[#b8b88a]']
+  const bg = palette[name.charCodeAt(0) % palette.length]
+  const cls = size === 'lg' ? 'w-14 h-14 text-lg' : 'w-10 h-10 text-[13px]'
+  return (
+    <div className={`${cls} ${bg} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0`}>
+      {initials}
+    </div>
+  )
+}
+
+function formatTs(ts: number | null | undefined): string {
+  if (!ts) return ''
+  const d = new Date(ts * 1000)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+function formatPhone(jid: string): string {
+  const num = jid.split('@')[0]
+  if (num.startsWith('55') && num.length >= 12) {
+    const ddd = num.slice(2, 4)
+    const rest = num.slice(4)
+    return rest.length === 9
+      ? `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`
+      : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`
+  }
+  return num
+}
+
+function msgText(msg: WaMessage): string {
+  if (msg.text) return msg.text
+  if (msg.caption) return msg.caption
+  if (msg.imageUrl) return '📷 Imagem'
+  if (msg.videoUrl) return '🎥 Vídeo'
+  if (msg.audioUrl) return '🎙️ Áudio'
+  if (msg.fileUrl) return `📎 ${msg.fileName ?? 'Arquivo'}`
+  return '[mídia]'
+}
+
+// ── Connection form ──────────────────────────────────────────────────────────
 
 function EvolutionConnectForm({
   onConnecting,
@@ -85,10 +96,7 @@ function EvolutionConnectForm({
     setError(null)
     const result = await criarConexaoWhatsappAction(formData)
     setLoading(false)
-    if (!result.ok) {
-      setError(result.error)
-      return
-    }
+    if (!result.ok) { setError(result.error); return }
     if (result.qrcode && result.token) {
       onConnecting(String(formData.get('nome_instancia') ?? ''), result.qrcode, result.token)
     }
@@ -104,39 +112,20 @@ function EvolutionConnectForm({
           <h2 className="font-playfair text-xl font-extrabold tracking-tight">WhatsApp</h2>
           <p className="text-sm text-muted mt-1">Conecte seu WhatsApp ao sistema</p>
         </div>
-
         <form action={handleSubmit} className="flex flex-col gap-5">
           <div>
             <label className="text-sm font-semibold mb-2 block">Nome da instância</label>
-            <input
-              name="nome_instancia"
-              type="text"
-              placeholder="ex: useclin-clinica"
-              required
-              className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
-            />
+            <input name="nome_instancia" type="text" placeholder="ex: useclin-clinica" required
+              className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors" />
           </div>
-
           <div>
             <label className="text-sm font-semibold mb-2 block">Número (com DDD e país)</label>
-            <input
-              name="numero"
-              type="text"
-              placeholder="5564999999999"
-              required
-              className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
-            />
+            <input name="numero" type="text" placeholder="5564999999999" required
+              className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors" />
           </div>
-
-          {error && (
-            <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 rounded-[13px] bg-green text-white text-sm font-semibold hover:bg-green/90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-1"
-          >
+          {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
+          <button type="submit" disabled={loading}
+            className="w-full py-3.5 rounded-[13px] bg-green text-white text-sm font-semibold hover:bg-green/90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-1">
             {loading ? 'Criando instância…' : 'Conectar'}
           </button>
         </form>
@@ -145,12 +134,10 @@ function EvolutionConnectForm({
   )
 }
 
+// ── QR code view ─────────────────────────────────────────────────────────────
+
 function QrCodeView({
-  instanceName,
-  qrcode,
-  token,
-  onBack,
-  onConnected,
+  instanceName, qrcode, token, onBack, onConnected,
 }: {
   instanceName: string
   qrcode: string | null
@@ -162,10 +149,7 @@ function QrCodeView({
     if (!token) return
     const id = setInterval(async () => {
       const res = await verificarStatusWhatsappAction(token)
-      if (res.connected) {
-        clearInterval(id)
-        onConnected()
-      }
+      if (res.connected) { clearInterval(id); onConnected() }
     }, 4000)
     return () => clearInterval(id)
   }, [token, onConnected])
@@ -179,52 +163,35 @@ function QrCodeView({
           </div>
           <h2 className="font-playfair text-xl font-extrabold tracking-tight">WhatsApp</h2>
           <p className="text-sm text-muted mt-1">Conecte seu WhatsApp ao sistema</p>
-
           <div className="flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-orange-light">
             <div className="w-2 h-2 rounded-full bg-orange animate-pulse" />
             <span className="text-xs font-semibold text-orange">Aguardando scan...</span>
           </div>
         </div>
-
         <div className="bg-white rounded-[14px] p-5 mx-auto w-[280px] h-[280px] flex items-center justify-center border border-border">
           {qrcode ? (
-            <img
-              src={qrcode.startsWith('data:') ? qrcode : `data:image/png;base64,${qrcode}`}
-              alt="QR Code WhatsApp"
-              className="w-full h-full object-contain"
-            />
+            <img src={qrcode.startsWith('data:') ? qrcode : `data:image/png;base64,${qrcode}`}
+              alt="QR Code WhatsApp" className="w-full h-full object-contain" />
           ) : (
             <p className="text-xs text-muted text-center">Gerando QR code...</p>
           )}
         </div>
-
-        <p className="text-sm text-muted text-center mt-5">
-          Escaneie o QR Code com o WhatsApp para conectar
-        </p>
+        <p className="text-sm text-muted text-center mt-5">Escaneie o QR Code com o WhatsApp para conectar</p>
         <p className="text-[11px] text-muted/60 text-center mt-1">
           Instância: <span className="font-semibold text-muted">{instanceName}</span>
         </p>
-
         <div className="flex items-center justify-center mt-5">
-          <button
-            onClick={onBack}
-            className="text-sm text-muted font-medium hover:text-text transition-colors cursor-pointer"
-          >
-            Voltar
-          </button>
+          <button onClick={onBack} className="text-sm text-muted font-medium hover:text-text transition-colors cursor-pointer">Voltar</button>
         </div>
       </div>
     </div>
   )
 }
 
+// ── Main view ────────────────────────────────────────────────────────────────
+
 export function PacientesView({ whatsapp }: { whatsapp?: WhatsappInfo }) {
   const router = useRouter()
-  const [selected, setSelected] = useState(0)
-  const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'conversas' | 'historico'>('conversas')
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
-  const [input, setInput] = useState('')
 
   const initStatus = (): ConnectionStatus => {
     if (!whatsapp) return 'disconnected'
@@ -238,245 +205,219 @@ export function PacientesView({ whatsapp }: { whatsapp?: WhatsappInfo }) {
   const [qrcode, setQrcode] = useState<string | null>(whatsapp?.qrcode_base64 ?? null)
   const [instToken, setInstToken] = useState<string | null>(whatsapp?.api_key ?? null)
 
-  const p = patients[selected]
-  const filtered = patients.filter((pt) => pt.name.toLowerCase().includes(search.toLowerCase()))
+  // Chat state
+  const [search, setSearch] = useState('')
+  const [chats, setChats] = useState<WaChat[]>([])
+  const [loadingChats, setLoadingChats] = useState(false)
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<WaMessage[]>([])
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
 
-  function sendMessage() {
-    if (!input.trim()) return
-    const now = new Date()
-    const time = now.toLocaleDateString('pt-BR') + ' · ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    setMessages([...messages, { sender: 'doctor', text: input, time }])
-    setInput('')
-  }
+  // Fetch chats when connected
+  useEffect(() => {
+    if (connectionStatus !== 'connected' || !instToken) return
+    setLoadingChats(true)
+    buscarChatsAction(instToken).then(({ chats }) => {
+      setChats(chats)
+      setLoadingChats(false)
+    })
+  }, [connectionStatus, instToken])
+
+  // Fetch messages when chat selected
+  useEffect(() => {
+    if (!selectedChatId || !instToken) return
+    setLoadingMessages(true)
+    buscarMensagensAction(instToken, selectedChatId).then(({ messages }) => {
+      setMessages(messages)
+      setLoadingMessages(false)
+    })
+  }, [selectedChatId, instToken])
 
   function handleConnecting(name: string, qr: string, token: string) {
-    setInstanceName(name)
-    setQrcode(qr)
-    setInstToken(token)
-    setConnectionStatus('scanning')
+    setInstanceName(name); setQrcode(qr); setInstToken(token); setConnectionStatus('scanning')
   }
 
   function handleConnected() {
-    setConnectionStatus('connected')
-    router.refresh()
+    setConnectionStatus('connected'); router.refresh()
   }
 
   function handleDisconnect() {
     setConnectionStatus('disconnected')
-    setInstanceName('')
-    setQrcode(null)
-    setInstToken(null)
+    setInstanceName(''); setQrcode(null); setInstToken(null)
+    setChats([]); setSelectedChatId(null); setMessages([])
   }
+
+  async function sendMessage() {
+    if (!input.trim() || !selectedChatId || !instToken || sending) return
+    const text = input.trim()
+    setInput('')
+    setSending(true)
+    await enviarMensagemAction(instToken, selectedChatId, text)
+    const { messages: updated } = await buscarMensagensAction(instToken, selectedChatId)
+    setMessages(updated)
+    setSending(false)
+  }
+
+  const filteredChats = chats.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.id.includes(search)
+  )
+
+  const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null
 
   return (
     <div className="flex h-[calc(100vh-120px)] px-10 pb-10 gap-0">
-      {/* Patient list */}
+      {/* ── Left panel ── */}
       <div className="w-80 flex-shrink-0 bg-card border border-border rounded-l-[14px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-border">
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <input
-              type="text"
-              placeholder="Buscar paciente..."
-              value={search}
+            <input type="text" placeholder="Buscar conversa..." value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-[38px] pr-3.5 py-2.5 rounded-[13px] border border-border text-[13px] bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
-            />
+              className="w-full pl-[38px] pr-3.5 py-2.5 rounded-[13px] border border-border text-[13px] bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors" />
           </div>
         </div>
 
-        {/* Connection status indicator */}
+        {/* Connection status */}
         <div className="px-4 py-3 border-b border-border">
-          <button
-            onClick={handleDisconnect}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[13px] bg-bg hover:bg-border/50 transition-colors cursor-pointer"
-          >
+          <button onClick={handleDisconnect}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[13px] bg-bg hover:bg-border/50 transition-colors cursor-pointer">
             <WhatsAppIcon className={`w-4 h-4 ${connectionStatus === 'connected' ? 'text-green' : 'text-muted'}`} />
             <span className={`text-xs font-semibold flex-1 text-left ${connectionStatus === 'connected' ? 'text-green' : 'text-muted'}`}>
               {connectionStatus === 'connected' ? 'WhatsApp conectado' : connectionStatus === 'scanning' ? 'Aguardando scan...' : 'WhatsApp desconectado'}
             </span>
-            <div className={`w-2 h-2 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green' : connectionStatus === 'scanning' ? 'bg-orange animate-pulse' : 'bg-border'
-            }`} />
+            <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green' : connectionStatus === 'scanning' ? 'bg-orange animate-pulse' : 'bg-border'}`} />
           </button>
         </div>
 
+        {/* Chat list */}
         <div className="flex-1 overflow-y-auto">
           {connectionStatus !== 'connected' ? (
             <div className="flex flex-col items-center justify-center h-full px-6 text-center">
               <WhatsAppIcon className="w-8 h-8 text-border mb-3" />
-              <p className="text-xs text-muted leading-relaxed">
-                Conecte seu WhatsApp para visualizar as conversas com seus pacientes.
-              </p>
+              <p className="text-xs text-muted leading-relaxed">Conecte seu WhatsApp para visualizar as conversas com seus pacientes.</p>
+            </div>
+          ) : loadingChats ? (
+            <div className="flex items-center justify-center h-32">
+              <p className="text-xs text-muted">Carregando conversas...</p>
+            </div>
+          ) : filteredChats.length === 0 ? (
+            <div className="flex items-center justify-center h-32 px-6 text-center">
+              <p className="text-xs text-muted">Nenhuma conversa encontrada.</p>
             </div>
           ) : (
-            filtered.map((pt, i) => {
-              const realIdx = patients.indexOf(pt)
-              return (
-                <div
-                  key={realIdx}
-                  onClick={() => setSelected(realIdx)}
-                  className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer border-l-[3px] transition-all ${
-                    selected === realIdx ? 'bg-bg border-l-text' : 'border-l-transparent hover:bg-bg'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold text-white flex-shrink-0 ${pt.color}`}>
-                    {pt.initials}
+            filteredChats.map((chat) => (
+              <div key={chat.id} onClick={() => setSelectedChatId(chat.id)}
+                className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer border-l-[3px] transition-all ${
+                  selectedChatId === chat.id ? 'bg-bg border-l-text' : 'border-l-transparent hover:bg-bg'
+                }`}>
+                <ChatAvatar name={chat.name} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold truncate">{chat.name}</div>
+                    <div className="text-[10px] text-muted flex-shrink-0">{formatTs(chat.lastMessageTimestamp)}</div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold">{pt.name}</div>
-                    <div className="text-xs text-muted truncate">{pt.lastVisit}</div>
+                  <div className="text-xs text-muted truncate mt-0.5">
+                    {chat.fromMe && <span className="mr-1">✓</span>}
+                    {chat.lastMessageText}
                   </div>
                 </div>
-              )
-            })
+                {chat.unread > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-green text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    {chat.unread}
+                  </span>
+                )}
+              </div>
+            ))
           )}
         </div>
       </div>
 
-      {/* Right panel — switches between connection flow and chat */}
+      {/* ── Right panel ── */}
       <div className="flex-1 bg-card border border-border border-l-0 rounded-r-[14px] flex flex-col overflow-hidden">
         {connectionStatus === 'disconnected' ? (
           <EvolutionConnectForm onConnecting={handleConnecting} />
         ) : connectionStatus === 'scanning' ? (
-          <QrCodeView
-            instanceName={instanceName}
-            qrcode={qrcode}
-            token={instToken}
-            onBack={() => setConnectionStatus('disconnected')}
-            onConnected={handleConnected}
-          />
+          <QrCodeView instanceName={instanceName} qrcode={qrcode} token={instToken}
+            onBack={() => setConnectionStatus('disconnected')} onConnected={handleConnected} />
+        ) : !selectedChat ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-10">
+            <ChatIcon className="w-10 h-10 text-border mb-4" />
+            <p className="text-sm font-semibold text-muted">Selecione uma conversa</p>
+            <p className="text-xs text-muted/70 mt-1">Clique em um contato à esquerda para visualizar as mensagens.</p>
+          </div>
         ) : (
           <>
             {/* Header */}
-            <div className="flex items-center gap-5 px-7 py-6 border-b border-border">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white flex-shrink-0 ${p.color}`}>
-                {p.initials}
-              </div>
+            <div className="flex items-center gap-4 px-7 py-5 border-b border-border">
+              <ChatAvatar name={selectedChat.name} size="lg" />
               <div className="flex-1">
-                <div className="font-playfair text-[22px] font-extrabold tracking-tight">{p.name}</div>
-                <div className="text-[13px] text-muted mt-0.5">{p.age} · {p.visits} · {p.since}</div>
+                <div className="font-playfair text-[20px] font-extrabold tracking-tight">{selectedChat.name}</div>
+                <div className="text-[12px] text-muted mt-0.5">{formatPhone(selectedChat.id)}</div>
               </div>
               <div className="flex gap-2.5">
-                <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[13px] border border-border bg-card text-[13px] font-semibold hover:bg-bg hover:border-text transition-all cursor-pointer">
-                  <CalendarIcon className="w-4 h-4" />
-                  Agendar
+                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-[13px] border border-border bg-card text-[13px] font-semibold hover:bg-bg hover:border-text transition-all cursor-pointer">
+                  <CalendarIcon className="w-4 h-4" />Agendar
                 </button>
-                <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[13px] border border-border bg-card text-[13px] font-semibold hover:bg-bg hover:border-text transition-all cursor-pointer">
-                  <ChatIcon className="w-4 h-4" />
-                  Contato
+                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-[13px] border border-border bg-card text-[13px] font-semibold hover:bg-bg hover:border-text transition-all cursor-pointer">
+                  <ChatIcon className="w-4 h-4" />Contato
                 </button>
               </div>
             </div>
 
-            {/* Info cards */}
-            <div className="grid grid-cols-4 mx-7 mt-5 border border-border rounded-[13px]">
-              {[
-                { label: 'Telefone', value: p.tel },
-                { label: 'Nascimento', value: p.nasc },
-                { label: 'Total gasto', value: p.gasto, green: true },
-                { label: 'Próximo agendamento', value: p.prox },
-              ].map((info, i) => (
-                <div key={i} className={`px-[18px] py-3.5 ${i < 3 ? 'border-r border-border' : ''}`}>
-                  <div className="text-[11px] text-muted font-medium mb-1">{info.label}</div>
-                  <div className={`text-sm font-bold ${info.green ? 'text-green' : ''}`}>{info.value}</div>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-7 py-5 flex flex-col gap-4">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-xs text-muted">Carregando mensagens...</p>
                 </div>
-              ))}
-            </div>
-
-            {/* Observations */}
-            <div className="mx-7 mt-4 px-[18px] py-3.5 bg-bg rounded-[13px]">
-              <div className="text-[11px] text-muted font-medium mb-1">Observações / Alergias</div>
-              <div className="text-[13px] leading-relaxed">{p.obs}</div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex mx-7 mt-5 border-b border-border">
-              {(['conversas', 'historico'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`px-5 py-2.5 text-sm font-semibold relative cursor-pointer transition-colors ${
-                    tab === t ? 'text-text' : 'text-muted hover:text-text'
-                  }`}
-                >
-                  {t === 'conversas' ? 'Conversas' : 'Histórico de atendimentos'}
-                  {tab === t && (
-                    <span className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-text rounded-t" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Chat */}
-            {tab === 'conversas' ? (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto px-7 py-5 flex flex-col gap-5">
-                  {messages.map((msg, i) => (
-                    <div key={i} className={`flex gap-3 max-w-[75%] ${msg.sender === 'doctor' ? 'self-start' : 'self-end flex-row-reverse'}`}>
-                      {msg.sender === 'doctor' && (
-                        <div className="w-9 h-9 rounded-full bg-bg flex items-center justify-center text-[11px] font-bold text-text flex-shrink-0">DR</div>
+              ) : messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-xs text-muted">Nenhuma mensagem encontrada.</p>
+                </div>
+              ) : (
+                messages.map((msg, i) => (
+                  <div key={msg.id ?? i}
+                    className={`flex gap-3 max-w-[75%] ${msg.fromMe ? 'self-end flex-row-reverse' : 'self-start'}`}>
+                    {!msg.fromMe && <ChatAvatar name={msg.pushName || selectedChat.name} />}
+                    <div className={`px-4 py-3 rounded-[14px] text-[13px] leading-relaxed ${
+                      msg.fromMe ? 'bg-[#f0f7f0] rounded-br-[4px]' : 'bg-bg rounded-bl-[4px]'
+                    }`}>
+                      {!msg.fromMe && (
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-bold">{msg.pushName || selectedChat.name}</span>
+                          <span className="text-[11px] text-muted">{formatTs(msg.messageTimestamp)}</span>
+                        </div>
                       )}
-                      <div className={`px-4 py-3 rounded-[14px] text-[13px] leading-relaxed ${
-                        msg.sender === 'doctor'
-                          ? 'bg-bg rounded-bl-[4px]'
-                          : 'bg-[#f0f7f0] rounded-br-[4px]'
-                      }`}>
-                        {msg.sender === 'doctor' ? (
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-xs font-bold">Dr. Rodrigo Alves</span>
-                            <span className="text-[11px] text-muted">{msg.time}</span>
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-muted mb-1.5 text-right">{msg.time}</div>
-                        )}
-                        {msg.text.split('\n').map((line, j) => (
-                          <span key={j}>{line}{j < msg.text.split('\n').length - 1 && <br />}</span>
-                        ))}
-                      </div>
+                      {msg.fromMe && (
+                        <div className="text-[11px] text-muted mb-1.5 text-right">{formatTs(msg.messageTimestamp)}</div>
+                      )}
+                      <span>{msgText(msg)}</span>
                     </div>
-                  ))}
-                </div>
-
-                {/* Input */}
-                <div className="px-7 py-4 border-t border-border flex items-center gap-2.5">
-                  <input
-                    type="text"
-                    placeholder="Escreva sua mensagem..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                    className="flex-1 px-[18px] py-3 rounded-xl border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
-                  />
-                  <button className="w-10 h-10 rounded-[13px] flex items-center justify-center text-muted hover:bg-bg hover:text-text transition-all cursor-pointer">
-                    <PaperclipIcon className="w-5 h-5" />
-                  </button>
-                  <button className="w-10 h-10 rounded-[13px] flex items-center justify-center text-muted hover:bg-bg hover:text-text transition-all cursor-pointer">
-                    <SmileIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={sendMessage}
-                    className="w-10 h-10 rounded-[13px] bg-text flex items-center justify-center text-white hover:bg-[#333] transition-all cursor-pointer hover:scale-105"
-                  >
-                    <SendIcon className="w-[18px] h-[18px]" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto px-7 py-5">
-                {historyItems.map((item, i) => (
-                  <div key={i} className={`flex items-center gap-3.5 py-3.5 ${i < historyItems.length - 1 ? 'border-b border-border' : ''}`}>
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.dot}`} />
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold">{item.title}</div>
-                      <div className="text-xs text-muted">{item.doctor}</div>
-                    </div>
-                    <div className="text-xs text-muted font-medium whitespace-nowrap">{item.date}</div>
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-green-light text-green">Concluída</span>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
+
+            {/* Input */}
+            <div className="px-7 py-4 border-t border-border flex items-center gap-2.5">
+              <input type="text" placeholder="Escreva sua mensagem..." value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                className="flex-1 px-[18px] py-3 rounded-xl border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors" />
+              <button className="w-10 h-10 rounded-[13px] flex items-center justify-center text-muted hover:bg-bg hover:text-text transition-all cursor-pointer">
+                <PaperclipIcon className="w-5 h-5" />
+              </button>
+              <button className="w-10 h-10 rounded-[13px] flex items-center justify-center text-muted hover:bg-bg hover:text-text transition-all cursor-pointer">
+                <SmileIcon className="w-5 h-5" />
+              </button>
+              <button onClick={sendMessage} disabled={!input.trim() || sending}
+                className="w-10 h-10 rounded-[13px] bg-text flex items-center justify-center text-white hover:bg-[#333] transition-all cursor-pointer hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100">
+                <SendIcon className="w-[18px] h-[18px]" />
+              </button>
+            </div>
           </>
         )}
       </div>

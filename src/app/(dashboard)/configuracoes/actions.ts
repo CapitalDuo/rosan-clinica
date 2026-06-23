@@ -159,6 +159,91 @@ export async function verificarStatusWhatsappAction(token: string): Promise<{
   }
 }
 
+export type WaChat = {
+  id: string
+  name: string
+  profilePicUrl: string | null
+  lastMessageText: string
+  lastMessageTimestamp: number | null
+  fromMe: boolean
+  unread: number
+}
+
+export type WaMessage = {
+  id: string
+  fromMe: boolean
+  remoteJid: string
+  pushName: string
+  messageType: string
+  messageTimestamp: number | null
+  text?: string | null
+  imageUrl?: string | null
+  caption?: string | null
+  audioUrl?: string | null
+  fileName?: string | null
+  fileUrl?: string | null
+  videoUrl?: string | null
+}
+
+export async function buscarChatsAction(token: string): Promise<{ chats: WaChat[] }> {
+  const webhookUrl = process.env.N8N_WEBHOOK_URL
+  if (!webhookUrl) return { chats: [] }
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao: 'chats', token }),
+    })
+    if (!res.ok) return { chats: [] }
+    const data = await res.json()
+    return { chats: data.chats ?? [] }
+  } catch {
+    return { chats: [] }
+  }
+}
+
+export async function buscarMensagensAction(
+  token: string,
+  remoteJid: string,
+): Promise<{ messages: WaMessage[] }> {
+  const webhookUrl = process.env.N8N_WEBHOOK_URL
+  if (!webhookUrl) return { messages: [] }
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao: 'mensagens', token, remoteJid }),
+    })
+    if (!res.ok) return { messages: [] }
+    const data = await res.json()
+    return { messages: data.messages ?? [] }
+  } catch {
+    return { messages: [] }
+  }
+}
+
+export async function enviarMensagemAction(
+  token: string,
+  remoteJid: string,
+  text: string,
+): Promise<{ ok: boolean }> {
+  const webhookUrl = process.env.N8N_WEBHOOK_URL
+  if (!webhookUrl) return { ok: false }
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao: 'enviar', token, remoteJid, text }),
+    })
+    return { ok: res.ok }
+  } catch {
+    return { ok: false }
+  }
+}
+
 export async function updateMeuPerfilAction(formData: FormData) {
   const supabase = await createClient()
   const {
