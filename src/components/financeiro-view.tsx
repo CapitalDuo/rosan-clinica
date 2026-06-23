@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { formatBrl } from '@/lib/currency'
 
 export type SeriePonto = { label: string; valor: number; data: string }
@@ -148,7 +148,7 @@ export function FinanceiroView({
               </button>
             </div>
           </div>
-          <LineChart serie={serie} />
+          <BarChart serie={serie} />
         </div>
 
         <div className="bg-card border border-border rounded-[14px] p-6 flex flex-col">
@@ -240,89 +240,138 @@ function MiniSparkline({ serie, color }: { serie: SeriePonto[]; color: string })
   )
 }
 
-function LineChart({ serie }: { serie: SeriePonto[] }) {
-  const width = 600
-  const height = 260
-  const padLeft = 36
-  const padRight = 10
-  const padTop = 10
-  const padBottom = 28
+function calcNiceMax(max: number): number {
+  if (max <= 0) return 100
+  const mag = Math.pow(10, Math.floor(Math.log10(max)))
+  const frac = max / mag
+  const nice = frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10
+  return nice * mag
+}
+
+function fmtY(v: number): string {
+  if (v >= 1000) return `${Math.round(v / 1000)}k`
+  return String(Math.round(v))
+}
+
+function BarChart({ serie }: { serie: SeriePonto[] }) {
+  const [hovered, setHovered] = useState<number | null>(null)
+
+  const W = 600
+  const H = 260
+  const PL = 42
+  const PR = 12
+  const PT = 16
+  const PB = 32
 
   const max = Math.max(1, ...serie.map((s) => s.valor))
-  const niceMax = Math.ceil(max / 50) * 50 || 50
-  const chartW = width - padLeft - padRight
-  const chartH = height - padTop - padBottom
-  const stepX = chartW / Math.max(1, serie.length - 1)
+  const niceMax = calcNiceMax(max)
+  const chartW = W - PL - PR
+  const chartH = H - PT - PB
 
-  const points = serie.map((s, i) => {
-    const x = padLeft + i * stepX
-    const y = padTop + chartH - (s.valor / niceMax) * chartH
-    return { x, y, label: s.label, valor: s.valor }
+  const slotW = chartW / Math.max(1, serie.length)
+  const barW = slotW * 0.55
+  const barOff = (slotW - barW) / 2
+
+  const bars = serie.map((s, i) => {
+    const bh = Math.max(2, (s.valor / niceMax) * chartH)
+    const x = PL + i * slotW + barOff
+    const y = PT + chartH - bh
+    const prev = serie[i - 1]
+    const pct = prev && prev.valor > 0 ? ((s.valor - prev.valor) / prev.valor) * 100 : null
+    return { x, y, bh, cx: x + barW / 2, label: s.label, valor: s.valor, pct }
   })
 
-  const path = points.reduce(
-    (acc, p, i) => acc + (i === 0 ? `M${p.x},${p.y}` : ` L${p.x},${p.y}`),
-    '',
-  )
-
-  // Y-axis ticks
   const ticks = 4
   const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
-    const value = (niceMax / ticks) * i
-    const y = padTop + chartH - (value / niceMax) * chartH
-    return { value, y }
+    const v = (niceMax / ticks) * i
+    return { v, y: PT + chartH - (v / niceMax) * chartH }
   })
 
+  const GREEN = '#2fb98a'
+  const GOLD = '#f5a623'
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-      {/* Grid */}
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full h-auto"
+      preserveAspectRatio="xMidYMid meet"
+      onMouseLeave={() => setHovered(null)}
+    >
+      {/* Grid + Y labels */}
       {yTicks.map((t, i) => (
-        <line
-          key={i}
-          x1={padLeft}
-          x2={width - padRight}
-          y1={t.y}
-          y2={t.y}
-          stroke="#ecebe8"
-          strokeWidth="1"
-          strokeDasharray={i === 0 ? '' : '3 4'}
-        />
-      ))}
-      {/* Y-axis labels */}
-      {yTicks.map((t, i) => (
-        <text
-          key={i}
-          x={padLeft - 8}
-          y={t.y + 4}
-          textAnchor="end"
-          className="fill-muted"
-          style={{ fontSize: 10 }}
-        >
-          {Math.round(t.value)}
-        </text>
-      ))}
-      {/* Line */}
-      <path d={path} fill="none" stroke="#5b4bd4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Points */}
-      {points.map((p, i) => (
         <g key={i}>
-          <circle cx={p.x} cy={p.y} r="4" fill="white" stroke="#5b4bd4" strokeWidth="2" />
-          <title>{`${p.label}: ${formatBrl(p.valor)}`}</title>
+          <line x1={PL} x2={W - PR} y1={t.y} y2={t.y}
+            stroke="#ecebe8" strokeWidth="1"
+            strokeDasharray={i === 0 ? '' : '3 4'} />
+          <text x={PL - 6} y={t.y + 4} textAnchor="end"
+            style={{ fontSize: 10, fill: '#9b978e' }}>
+            {fmtY(t.v)}
+          </text>
         </g>
       ))}
-      {/* X-axis labels */}
-      {points.map((p, i) => (
-        <text
-          key={i}
-          x={p.x}
-          y={height - 8}
-          textAnchor="middle"
-          className="fill-muted"
-          style={{ fontSize: 11 }}
-        >
-          {p.label}
-        </text>
-      ))}
+
+      {/* Bars */}
+      {bars.map((b, i) => {
+        const isHov = hovered === i
+        return (
+          <g key={i} onMouseEnter={() => setHovered(i)} style={{ cursor: 'default' }}>
+            {/* invisible hit area */}
+            <rect x={PL + i * slotW} y={PT} width={slotW} height={chartH} fill="transparent" />
+            {/* bar */}
+            <rect x={b.x} y={b.y} width={barW} height={b.bh} rx={5}
+              fill={isHov ? GOLD : GREEN}
+              style={{ transition: 'fill 0.12s' }} />
+            {/* dashed line + dot on hover */}
+            {isHov && (
+              <>
+                <line x1={b.cx} y1={PT} x2={b.cx} y2={b.y}
+                  stroke="white" strokeWidth="1.5" strokeDasharray="3 3" />
+                <circle cx={b.cx} cy={b.y} r="5" fill="white" stroke={GOLD} strokeWidth="2" />
+              </>
+            )}
+            {/* X label — bold when hovered */}
+            <text x={b.cx} y={H - 8} textAnchor="middle"
+              style={{ fontSize: 11, fill: isHov ? '#1a1a1a' : '#9b978e', fontWeight: isHov ? 600 : 400 }}>
+              {b.label}
+            </text>
+          </g>
+        )
+      })}
+
+      {/* Tooltip */}
+      {hovered !== null && (() => {
+        const b = bars[hovered]
+        const TW = 138; const TH = 62; const R = 10
+        let tx = b.cx - TW / 2
+        if (tx < PL) tx = PL
+        if (tx + TW > W - PR) tx = W - PR - TW
+        const ty = Math.max(PT + 4, b.y - TH - 14)
+
+        return (
+          <g style={{ pointerEvents: 'none' }}>
+            <rect x={tx} y={ty} width={TW} height={TH} rx={R}
+              fill="white" style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.13))' }} />
+            {/* Month label */}
+            <text x={tx + 12} y={ty + 20}
+              style={{ fontSize: 12, fontWeight: 600, fill: '#1a1a1a' }}>
+              {b.label}
+            </text>
+            {/* Dot + value */}
+            <circle cx={tx + 14} cy={ty + 40} r={4} fill={GOLD} />
+            <text x={tx + 24} y={ty + 45}
+              style={{ fontSize: 13, fontWeight: 700, fill: '#1a1a1a' }}>
+              {formatBrl(b.valor)}
+            </text>
+            {/* % change */}
+            {b.pct !== null && (
+              <text x={tx + TW - 10} y={ty + 45} textAnchor="end"
+                style={{ fontSize: 12, fontWeight: 600, fill: b.pct >= 0 ? GREEN : '#e53e3e' }}>
+                {b.pct >= 0 ? '↗' : '↘'} {Math.abs(Math.round(b.pct))}%
+              </text>
+            )}
+          </g>
+        )
+      })()}
     </svg>
   )
 }

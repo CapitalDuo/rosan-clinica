@@ -175,6 +175,39 @@ export function ConfiguracoesView({
         <Row label="E-mail" value={profissional.email ?? '—'} hint="Usado para login — fale com o admin para alterar" />
       </SectionCard>
 
+      <SectionCard title="Plano">
+        <div className="py-3 flex flex-col gap-4">
+          {/* Plan card */}
+          <div className="flex items-center gap-4 px-4 py-4 rounded-[13px] border border-border bg-bg">
+            <div className="w-10 h-10 rounded-[11px] bg-[#f1eefb] flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#5b4bd4" strokeWidth="1.8" className="w-5 h-5">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                <path d="M9 14l-2 6 5-2 5 2-2-6" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-bold text-text">Plano Gratuito</div>
+              <div className="text-xs text-muted mt-0.5">3 consultas/mês</div>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-[#f1eefb] text-[#5b4bd4] text-[11px] font-semibold tracking-wide flex-shrink-0">
+              ATIVO
+            </span>
+          </div>
+
+          {/* Usage bar */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted">Uso este mês</span>
+              <span className="text-sm font-semibold text-[#5b4bd4]">0 / 3</span>
+            </div>
+            <div className="h-2 bg-border rounded-full overflow-hidden">
+              <div className="h-full bg-[#5b4bd4] rounded-full transition-all" style={{ width: '0%' }} />
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
       {editKind === 'clinica' && <ClinicaModal clinica={clinica} onClose={closeModal} />}
       {editKind === 'horarios' && <HorariosModal initial={horarios} onClose={closeModal} />}
       {editKind === 'whatsapp' && <WhatsappModal initial={whatsapp} onClose={closeModal} />}
