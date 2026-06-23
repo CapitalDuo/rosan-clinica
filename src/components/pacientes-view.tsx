@@ -1,7 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { SearchIcon, CalendarIcon, ChatIcon, SendIcon, PaperclipIcon, SmileIcon } from '@/components/icons'
+import {
+  criarConexaoWhatsappAction,
+  verificarStatusWhatsappAction,
+} from '@/app/(dashboard)/configuracoes/actions'
+
+export type WhatsappInfo = {
+  id: string
+  nome_instancia: string
+  numero: string
+  status: string
+  qrcode_base64: string | null
+  api_key: string | null
+} | null
 
 type ConnectionStatus = 'disconnected' | 'scanning' | 'connected'
 
@@ -58,14 +72,25 @@ function WhatsAppIcon({ className }: { className?: string }) {
   )
 }
 
-function EvolutionConnectForm({ onConnect }: { onConnect: (name: string, number: string) => void }) {
-  const [instanceName, setInstanceName] = useState('')
-  const [phoneNumber, setPhoneNumber] = useState('')
+function EvolutionConnectForm({
+  onConnecting,
+}: {
+  onConnecting: (name: string, qrcode: string, token: string) => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (instanceName.trim() && phoneNumber.trim()) {
-      onConnect(instanceName.trim(), phoneNumber.trim())
+  async function handleSubmit(formData: FormData) {
+    setLoading(true)
+    setError(null)
+    const result = await criarConexaoWhatsappAction(formData)
+    setLoading(false)
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
+    if (result.qrcode && result.token) {
+      onConnecting(String(formData.get('nome_instancia') ?? ''), result.qrcode, result.token)
     }
   }
 
@@ -80,14 +105,14 @@ function EvolutionConnectForm({ onConnect }: { onConnect: (name: string, number:
           <p className="text-sm text-muted mt-1">Conecte seu WhatsApp ao sistema</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form action={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="text-sm font-semibold mb-2 block">Nome</label>
+            <label className="text-sm font-semibold mb-2 block">Nome da instância</label>
             <input
+              name="nome_instancia"
               type="text"
-              placeholder="ex: rosan-clinica"
-              value={instanceName}
-              onChange={(e) => setInstanceName(e.target.value)}
+              placeholder="ex: useclin-clinica"
+              required
               className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
             />
           </div>
@@ -95,20 +120,37 @@ function EvolutionConnectForm({ onConnect }: { onConnect: (name: string, number:
           <div>
             <label className="text-sm font-semibold mb-2 block">Número (com DDD e país)</label>
             <input
+              name="numero"
               type="text"
               placeholder="5564999999999"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
               className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
             />
           </div>
 
+          <div>
+            <label className="text-sm font-semibold mb-2 block">Admin Token UAZAPI</label>
+            <input
+              name="admintoken"
+              type="password"
+              placeholder="Token administrativo do painel UAZAPI"
+              required
+              autoComplete="off"
+              className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg outline-none focus:border-[#5b4bd4] focus:bg-card transition-colors"
+            />
+            <p className="text-[10px] text-muted mt-1.5">Painel UAZAPI → Configurações → Admin Token</p>
+          </div>
+
+          {error && (
+            <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>
+          )}
+
           <button
             type="submit"
-            disabled={!instanceName.trim() || !phoneNumber.trim()}
+            disabled={loading}
             className="w-full py-3.5 rounded-[13px] bg-green text-white text-sm font-semibold hover:bg-green/90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-1"
           >
-            Conectar
+            {loading ? 'Criando instância…' : 'Conectar'}
           </button>
         </form>
       </div>
@@ -116,7 +158,31 @@ function EvolutionConnectForm({ onConnect }: { onConnect: (name: string, number:
   )
 }
 
-function QrCodeView({ instanceName, onBack, onSimulateConnect }: { instanceName: string; onBack: () => void; onSimulateConnect: () => void }) {
+function QrCodeView({
+  instanceName,
+  qrcode,
+  token,
+  onBack,
+  onConnected,
+}: {
+  instanceName: string
+  qrcode: string | null
+  token: string | null
+  onBack: () => void
+  onConnected: () => void
+}) {
+  useEffect(() => {
+    if (!token) return
+    const id = setInterval(async () => {
+      const res = await verificarStatusWhatsappAction(token)
+      if (res.connected) {
+        clearInterval(id)
+        onConnected()
+      }
+    }, 4000)
+    return () => clearInterval(id)
+  }, [token, onConnected])
+
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="w-full max-w-[420px] bg-card border border-border rounded-[18px] p-8">
@@ -133,40 +199,16 @@ function QrCodeView({ instanceName, onBack, onSimulateConnect }: { instanceName:
           </div>
         </div>
 
-        {/* QR Code placeholder */}
         <div className="bg-white rounded-[14px] p-5 mx-auto w-[280px] h-[280px] flex items-center justify-center border border-border">
-          <svg viewBox="0 0 200 200" className="w-full h-full">
-            {/* Simulated QR code pattern */}
-            <rect x="0" y="0" width="200" height="200" fill="white" />
-            {/* Position markers (corners) */}
-            <rect x="10" y="10" width="50" height="50" rx="4" fill="none" stroke="#15803d" strokeWidth="6" />
-            <rect x="22" y="22" width="26" height="26" rx="2" fill="#15803d" />
-            <rect x="140" y="10" width="50" height="50" rx="4" fill="none" stroke="#15803d" strokeWidth="6" />
-            <rect x="152" y="22" width="26" height="26" rx="2" fill="#15803d" />
-            <rect x="10" y="140" width="50" height="50" rx="4" fill="none" stroke="#15803d" strokeWidth="6" />
-            <rect x="22" y="152" width="26" height="26" rx="2" fill="#15803d" />
-            {/* Data modules */}
-            {Array.from({ length: 15 }, (_, row) =>
-              Array.from({ length: 15 }, (_, col) => {
-                const inCorner = (row < 5 && col < 5) || (row < 5 && col > 10) || (row > 10 && col < 5)
-                if (inCorner) return null
-                const show = (row * 7 + col * 13 + row * col) % 3 !== 0
-                if (!show) return null
-                return (
-                  <rect
-                    key={`${row}-${col}`}
-                    x={12 + col * 12}
-                    y={12 + row * 12}
-                    width="8"
-                    height="8"
-                    rx="1.5"
-                    fill="#15803d"
-                    opacity={0.85}
-                  />
-                )
-              })
-            )}
-          </svg>
+          {qrcode ? (
+            <img
+              src={qrcode.startsWith('data:') ? qrcode : `data:image/png;base64,${qrcode}`}
+              alt="QR Code WhatsApp"
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <p className="text-xs text-muted text-center">Gerando QR code...</p>
+          )}
         </div>
 
         <p className="text-sm text-muted text-center mt-5">
@@ -176,19 +218,12 @@ function QrCodeView({ instanceName, onBack, onSimulateConnect }: { instanceName:
           Instância: <span className="font-semibold text-muted">{instanceName}</span>
         </p>
 
-        <div className="flex items-center justify-center gap-4 mt-5">
+        <div className="flex items-center justify-center mt-5">
           <button
             onClick={onBack}
             className="text-sm text-muted font-medium hover:text-text transition-colors cursor-pointer"
           >
             Voltar
-          </button>
-          <span className="text-border">|</span>
-          <button
-            onClick={onSimulateConnect}
-            className="text-sm text-green font-semibold hover:text-green/80 transition-colors cursor-pointer"
-          >
-            Simular conexão
           </button>
         </div>
       </div>
@@ -196,14 +231,25 @@ function QrCodeView({ instanceName, onBack, onSimulateConnect }: { instanceName:
   )
 }
 
-export function PacientesView() {
+export function PacientesView({ whatsapp }: { whatsapp?: WhatsappInfo }) {
+  const router = useRouter()
   const [selected, setSelected] = useState(0)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'conversas' | 'historico'>('conversas')
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
-  const [instanceName, setInstanceName] = useState('')
+
+  const initStatus = (): ConnectionStatus => {
+    if (!whatsapp) return 'disconnected'
+    if (whatsapp.status === 'conectado') return 'connected'
+    if (whatsapp.status === 'aguardando_scan') return 'scanning'
+    return 'disconnected'
+  }
+
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(initStatus)
+  const [instanceName, setInstanceName] = useState(whatsapp?.nome_instancia ?? '')
+  const [qrcode, setQrcode] = useState<string | null>(whatsapp?.qrcode_base64 ?? null)
+  const [instToken, setInstToken] = useState<string | null>(whatsapp?.api_key ?? null)
 
   const p = patients[selected]
   const filtered = patients.filter((pt) => pt.name.toLowerCase().includes(search.toLowerCase()))
@@ -216,18 +262,23 @@ export function PacientesView() {
     setInput('')
   }
 
-  function handleConnect(name: string, _number: string) {
+  function handleConnecting(name: string, qr: string, token: string) {
     setInstanceName(name)
+    setQrcode(qr)
+    setInstToken(token)
     setConnectionStatus('scanning')
   }
 
-  function handleSimulateConnect() {
+  function handleConnected() {
     setConnectionStatus('connected')
+    router.refresh()
   }
 
   function handleDisconnect() {
     setConnectionStatus('disconnected')
     setInstanceName('')
+    setQrcode(null)
+    setInstToken(null)
   }
 
   return (
@@ -250,10 +301,7 @@ export function PacientesView() {
         {/* Connection status indicator */}
         <div className="px-4 py-3 border-b border-border">
           <button
-            onClick={() => {
-              if (connectionStatus === 'connected') handleDisconnect()
-              else setConnectionStatus('disconnected')
-            }}
+            onClick={handleDisconnect}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[13px] bg-bg hover:bg-border/50 transition-colors cursor-pointer"
           >
             <WhatsAppIcon className={`w-4 h-4 ${connectionStatus === 'connected' ? 'text-green' : 'text-muted'}`} />
@@ -302,12 +350,14 @@ export function PacientesView() {
       {/* Right panel — switches between connection flow and chat */}
       <div className="flex-1 bg-card border border-border border-l-0 rounded-r-[14px] flex flex-col overflow-hidden">
         {connectionStatus === 'disconnected' ? (
-          <EvolutionConnectForm onConnect={handleConnect} />
+          <EvolutionConnectForm onConnecting={handleConnecting} />
         ) : connectionStatus === 'scanning' ? (
           <QrCodeView
             instanceName={instanceName}
+            qrcode={qrcode}
+            token={instToken}
             onBack={() => setConnectionStatus('disconnected')}
-            onSimulateConnect={handleSimulateConnect}
+            onConnected={handleConnected}
           />
         ) : (
           <>
