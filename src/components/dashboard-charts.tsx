@@ -24,7 +24,7 @@ export function DonutChart({ data, compact = false }: { data: DonutSlice[]; comp
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const total = data.reduce((acc, s) => acc + s.value, 0)
   const hovered = hoveredIdx !== null ? data[hoveredIdx] : null
-  const size = compact ? 76 : 104
+  const size = compact ? 62 : 104
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -58,34 +58,34 @@ export function DonutChart({ data, compact = false }: { data: DonutSlice[]; comp
 
   return (
     <div
-      className={`flex items-center ${compact ? 'gap-3' : 'gap-4'}`}
+      className={`flex items-center ${compact ? 'gap-2.5' : 'gap-4'}`}
       onMouseLeave={() => setHoveredIdx(null)}
     >
       <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
         {total > 0 ? (
           <canvas ref={canvasRef} />
         ) : (
-          <div className="w-full h-full rounded-full border-[14px] border-[#f1f0ed]" />
+          <div className="w-full h-full rounded-full border-[12px] border-[#f1f0ed]" />
         )}
-        <div className="absolute inset-0 rounded-full flex flex-col items-center justify-center pointer-events-none transition-all duration-150" style={{ inset: compact ? '12px' : '16px' }}>
+        <div className="absolute rounded-full flex flex-col items-center justify-center pointer-events-none transition-all duration-150" style={{ inset: compact ? '10px' : '16px' }}>
           {hovered ? (
             <>
-              <div className={`font-newsreader font-semibold leading-none ${compact ? 'text-xl' : 'text-2xl'}`} style={{ color: hovered.color }}>{hovered.value}</div>
+              <div className={`font-newsreader font-semibold leading-none ${compact ? 'text-lg' : 'text-2xl'}`} style={{ color: hovered.color }}>{hovered.value}</div>
               {!compact && <div className="text-[9px] text-muted text-center leading-tight mt-0.5 max-w-[48px] truncate">{hovered.label}</div>}
             </>
           ) : (
             <>
-              <div className={`font-newsreader font-semibold text-text leading-none ${compact ? 'text-xl' : 'text-2xl'}`}>{total}</div>
-              <div className={`text-muted ${compact ? 'text-[9px]' : 'text-[10px]'}`}>Total</div>
+              <div className={`font-newsreader font-semibold text-text leading-none ${compact ? 'text-lg' : 'text-2xl'}`}>{total}</div>
+              <div className={`text-muted ${compact ? 'text-[8.5px]' : 'text-[10px]'}`}>Total</div>
             </>
           )}
         </div>
       </div>
-      <div className={`flex flex-col ${compact ? 'gap-[7px]' : 'gap-[9px]'} flex-1`}>
+      <div className={`flex flex-col ${compact ? 'gap-[4px]' : 'gap-[9px]'} flex-1 min-w-0`}>
         {data.map((s, i) => (
           <div
             key={s.label}
-            className={`flex items-center gap-1.5 transition-opacity ${compact ? 'text-[11px]' : 'text-[12.5px]'} ${hoveredIdx !== null && hoveredIdx !== i ? 'opacity-40' : 'opacity-100'}`}
+            className={`flex items-center gap-1.5 transition-opacity ${compact ? 'text-[10.5px]' : 'text-[12.5px]'} ${hoveredIdx !== null && hoveredIdx !== i ? 'opacity-40' : 'opacity-100'}`}
           >
             <span className={`rounded-full flex-shrink-0 ${compact ? 'w-1.5 h-1.5' : 'w-2 h-2'}`} style={{ background: s.color }} />
             <span className="text-muted flex-1 truncate">{s.label}</span>
@@ -99,71 +99,100 @@ export function DonutChart({ data, compact = false }: { data: DonutSlice[]; comp
 
 export type WeekPoint = { label: string; value: number }
 
+// Chart de área responsivo que preenche 100% do container.
+// O SVG usa preserveAspectRatio="none" (escala livre) com vector-effect nas
+// linhas pra não distorcer a espessura; os dots e textos são HTML por cima,
+// garantindo círculos perfeitos e tipografia nítida em qualquer largura.
 export function WeekChart({ points }: { points: WeekPoint[] }) {
   const max = Math.max(30, ...points.map((p) => p.value))
-  const W = 980
-  const H = 200
-  const PADDING_LEFT = 70
-  const PADDING_RIGHT = 25
-  const TOP = 20
-  const BOTTOM = 160
-  const usableWidth = W - PADDING_LEFT - PADDING_RIGHT
-  const step = points.length > 1 ? usableWidth / (points.length - 1) : 0
+  const n = points.length
   const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
+  const PAD_X = 4 // % de respiro lateral
+  const PLOT_TOP = 8 // % topo (espaço pro dot do pico)
+  const PLOT_H = 76 // % altura da área plotável (resto = labels do eixo X)
+
   const coords = points.map((p, i) => ({
-    x: PADDING_LEFT + step * i,
-    y: TOP + (BOTTOM - TOP) * (1 - p.value / max),
+    x: PAD_X + (n > 1 ? (i / (n - 1)) * (100 - 2 * PAD_X) : 50),
+    y: PLOT_TOP + (1 - p.value / max) * PLOT_H,
     label: p.label,
     value: p.value,
   }))
 
-  const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x},${c.y}`).join(' ')
-  const areaPath = `${linePath} L${coords[coords.length - 1]?.x ?? 0},${BOTTOM} L${coords[0]?.x ?? 0},${BOTTOM} Z`
+  const baseY = PLOT_TOP + PLOT_H
+  const linePath = 'M ' + coords.map((c) => `${c.x} ${c.y}`).join(' L ')
+  const areaPath = `${linePath} L ${coords[n - 1]?.x ?? 0} ${baseY} L ${coords[0]?.x ?? 0} ${baseY} Z`
+  const gridRows = [0, 1, 2, 3] // do topo (max) até a base (0)
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[180px] overflow-visible">
-      {[0, 1, 2, 3].map((i) => {
-        const y = TOP + ((BOTTOM - TOP) * i) / 3
-        return (
-          <g key={i}>
-            <line x1={PADDING_LEFT - 26} y1={y} x2={W - PADDING_RIGHT} y2={y} stroke="#f0efec" strokeWidth="1" />
-            <text x={PADDING_LEFT - 40} y={y + 4} textAnchor="end" fontSize="11" fill="#b4b1a9">
-              {Math.round((max * (3 - i)) / 3)}
-            </text>
-          </g>
-        )
-      })}
+    <div className="relative w-full h-full flex text-[10px] min-h-[180px]">
+      {/* eixo Y */}
+      <div className="relative w-6 flex-none">
+        {gridRows.map((k) => (
+          <span
+            key={k}
+            className="absolute right-1 -translate-y-1/2 text-[#b4b1a9]"
+            style={{ top: `${PLOT_TOP + (k / 3) * PLOT_H}%` }}
+          >
+            {Math.round((max * (3 - k)) / 3)}
+          </span>
+        ))}
+      </div>
 
-      <path d={areaPath} fill="#6d5ae6" fillOpacity="0.08" />
-      <path d={linePath} fill="none" stroke="#6d5ae6" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+      {/* área de plot */}
+      <div className="relative flex-1 min-w-0">
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {gridRows.map((k) => {
+            const y = PLOT_TOP + (k / 3) * PLOT_H
+            return (
+              <line key={k} x1="0" x2="100" y1={y} y2={y} stroke="#f0efec" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            )
+          })}
+          <path d={areaPath} fill="#6d5ae6" fillOpacity="0.09" />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="#6d5ae6"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
 
-      {coords.map((c, i) => (
-        <circle
-          key={i}
-          cx={c.x}
-          cy={c.y}
-          r={i === todayIdx ? 5.5 : 4}
-          fill={i === todayIdx ? '#6d5ae6' : '#fff'}
-          stroke={i === todayIdx ? '#fff' : '#6d5ae6'}
-          strokeWidth="2.4"
-        />
-      ))}
+        {/* dots (HTML = círculos perfeitos) */}
+        {coords.map((c, i) => (
+          <span
+            key={i}
+            className="absolute rounded-full -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${c.x}%`,
+              top: `${c.y}%`,
+              width: i === todayIdx ? 11 : 8,
+              height: i === todayIdx ? 11 : 8,
+              background: i === todayIdx ? '#6d5ae6' : '#fff',
+              border: '2.4px solid #6d5ae6',
+              boxShadow: i === todayIdx ? '0 0 0 2.4px #fff' : undefined,
+            }}
+          />
+        ))}
 
-      {coords.map((c, i) => (
-        <text
-          key={i}
-          x={c.x}
-          y={H - 18}
-          textAnchor="middle"
-          fontSize="11.5"
-          fontWeight={i === todayIdx ? 700 : 400}
-          fill={i === todayIdx ? '#6d5ae6' : '#a3a09a'}
-        >
-          {c.label}
-        </text>
-      ))}
-    </svg>
+        {/* labels do eixo X */}
+        {coords.map((c, i) => (
+          <span
+            key={i}
+            className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap"
+            style={{
+              left: `${c.x}%`,
+              fontWeight: i === todayIdx ? 700 : 400,
+              color: i === todayIdx ? '#6d5ae6' : '#a3a09a',
+            }}
+          >
+            {c.label}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 

@@ -174,18 +174,21 @@ export default async function DashboardPage() {
               sparkline="flat"
               valueSmall
             />
-            {/* Consultas por status — compacto, no lugar do 3º KPI */}
+            {/* Consultas por status — compacto, fundo branco, no lugar do 3º KPI */}
             <div
-              className="bg-[#f1eefb] border border-[#e7e1fa] rounded-[18px] p-[14px_14px_14px] relative overflow-hidden"
+              className="rounded-[18px] h-[126px] p-[13px] overflow-hidden flex flex-col border"
+              style={{ background: '#fff', borderColor: '#ecebe8', boxShadow: '0 1px 2px rgba(28,27,26,.05)' }}
             >
-              <div className="text-[11.5px] font-semibold text-[#7c6fae] mb-2.5">Consultas por status</div>
-              <DonutChart data={statusChart} compact />
+              <div className="text-[11.5px] font-semibold text-muted mb-1">Consultas por status</div>
+              <div className="flex-1 min-h-0 flex items-center">
+                <DonutChart data={statusChart} compact />
+              </div>
             </div>
           </div>
 
           {/* Gráfico semanal + Minha Agenda lado a lado */}
-          <div className="grid grid-cols-2 gap-[22px]">
-            <div className="bg-card border border-border rounded-[18px] p-5" style={{ boxShadow: CARD_SHADOW }}>
+          <div className="grid grid-cols-2 gap-[22px] items-stretch">
+            <div className="bg-card border border-border rounded-[18px] p-5 flex flex-col" style={{ boxShadow: CARD_SHADOW }}>
               <div className="flex justify-between items-center mb-3.5">
                 <div className="font-newsreader font-semibold text-[17px] text-text">Atendimentos da semana</div>
                 <div className="flex gap-1.5">
@@ -193,7 +196,9 @@ export default async function DashboardPage() {
                   <span className="text-[11px] font-semibold text-muted px-2.5 py-1 rounded-[8px]">Mês</span>
                 </div>
               </div>
-              <WeekChart points={weekPoints} />
+              <div className="flex-1 min-h-[200px]">
+                <WeekChart points={weekPoints} />
+              </div>
             </div>
 
             <DashboardCalendar

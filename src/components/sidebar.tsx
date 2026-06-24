@@ -26,16 +26,22 @@ const navItems = [
   { href: '/configuracoes', label: 'Configurações', icon: SettingsIcon },
 ]
 
+// Canto côncavo: caixa branca (cor do conteúdo) com um quadrado escuro
+// por cima que tem só UM canto arredondado — o arredondado revela o branco,
+// criando a ilusão de que a aba "curva" para fora, conectando ao conteúdo.
 function NavNotch({ position }: { position: 'top' | 'bottom' }) {
+  const isTop = position === 'top'
   return (
     <span
-      className="absolute right-0 w-5 h-5 z-10 pointer-events-none"
-      style={{
-        [position === 'top' ? 'bottom' : 'top']: '100%',
-        background: NAV_BG,
-        [position === 'top' ? 'borderBottomRightRadius' : 'borderTopRightRadius']: '20px',
-      }}
-    />
+      aria-hidden
+      className="absolute right-0 w-4 h-4 bg-white pointer-events-none"
+      style={{ [isTop ? 'bottom' : 'top']: '100%' }}
+    >
+      <span
+        className={`block w-full h-full ${isTop ? 'rounded-br-[16px]' : 'rounded-tr-[16px]'}`}
+        style={{ background: NAV_BG }}
+      />
+    </span>
   )
 }
 
