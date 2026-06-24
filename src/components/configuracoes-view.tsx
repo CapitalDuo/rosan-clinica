@@ -11,6 +11,7 @@ import {
   toggleNotificacaoAction,
   type NotificacaoTipo,
 } from '@/app/(dashboard)/configuracoes/actions'
+import { WalletIcon, HomeIcon, UserIcon, BellIcon, ClockIcon, ChatIcon } from '@/components/icons'
 
 export type Clinica = {
   id: string
@@ -76,38 +77,14 @@ const WHATSAPP_STATUS_STYLE: Record<string, string> = {
   erro: 'bg-red-light text-red',
 }
 
-const ICON_CLS = 'w-5 h-5'
+const ICON_CLS = 'w-[18px] h-[18px] text-[#9a978f]'
 const SECTION_ICONS = {
-  plano: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={ICON_CLS}>
-      <rect x="2" y="5" width="20" height="14" rx="2.5" /><line x1="2" y1="10" x2="22" y2="10" /><line x1="6" y1="15" x2="9" y2="15" />
-    </svg>
-  ),
-  clinica: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={ICON_CLS}>
-      <rect x="4" y="2" width="11" height="20" rx="1.5" /><path d="M15 8h4a1 1 0 011 1v12a1 1 0 01-1 1h-4" /><line x1="8" y1="6" x2="11" y2="6" /><line x1="8" y1="10" x2="11" y2="10" /><line x1="8" y1="14" x2="11" y2="14" />
-    </svg>
-  ),
-  perfil: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={ICON_CLS}>
-      <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
-    </svg>
-  ),
-  notificacoes: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={ICON_CLS}>
-      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
-    </svg>
-  ),
-  horarios: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={ICON_CLS}>
-      <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" />
-    </svg>
-  ),
-  whatsapp: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={ICON_CLS}>
-      <path d="M21 11.5a8.38 8.38 0 01-8.5 8.5 8.48 8.48 0 01-3.8-.9L3 20l1.4-5.2a8.38 8.38 0 01-.9-3.8A8.5 8.5 0 0112 2.5a8.38 8.38 0 018.5 8.5z" />
-    </svg>
-  ),
+  plano: <WalletIcon className={ICON_CLS} />,
+  clinica: <HomeIcon className={ICON_CLS} />,
+  perfil: <UserIcon className={ICON_CLS} />,
+  notificacoes: <BellIcon className={ICON_CLS} />,
+  horarios: <ClockIcon className={ICON_CLS} />,
+  whatsapp: <ChatIcon className={ICON_CLS} />,
 }
 
 export function ConfiguracoesView({
@@ -441,7 +418,7 @@ function SectionCard({
     <section className="bg-card border border-border rounded-[14px] overflow-hidden">
       <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-border">
         <h2 className="font-playfair text-[20px] font-extrabold tracking-tight flex items-center gap-2.5">
-          {icon && <span className="text-text/80">{icon}</span>}
+          {icon && <span className="flex-shrink-0">{icon}</span>}
           {title}
         </h2>
         {onEdit && (
