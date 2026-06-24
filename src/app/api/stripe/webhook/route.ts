@@ -1,9 +1,19 @@
 import type { NextRequest } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { stripe, PLANS } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type Stripe from 'stripe'
 
 export const dynamic = 'force-dynamic'
+
+// Deriva o plano pelo PREÇO da assinatura (fonte da verdade), não pelo
+// metadata — o portal/dashboard da Stripe não atualiza o metadata ao trocar
+// de plano, então confiar nele desincronizaria o plano_slug.
+function planoFromSub(sub: Stripe.Subscription): 'basico' | 'completo' {
+  const priceId = sub.items.data[0]?.price.id
+  if (priceId === PLANS.completo.priceId) return 'completo'
+  if (priceId === PLANS.basico.priceId) return 'basico'
+  return (sub.metadata?.plano as 'basico' | 'completo') ?? 'basico'
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -29,16 +39,18 @@ export async function POST(req: NextRequest) {
 
         const subId = session.subscription as string
         let periodoFim: string | null = null
+        let planoFinal = plano
         if (subId) {
           const sub = await stripe.subscriptions.retrieve(subId)
           const end = sub.items.data[0]?.current_period_end
           periodoFim = end ? new Date(end * 1000).toISOString() : null
+          planoFinal = planoFromSub(sub)
         }
 
         await supabase.from('clinica').update({
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: subId,
-          plano_slug: plano,
+          plano_slug: planoFinal,
           plano_status: 'ativo',
           plano_periodo_fim: periodoFim,
         }).eq('id', clinica_id)
@@ -50,7 +62,7 @@ export async function POST(req: NextRequest) {
         const clinica_id = sub.metadata?.clinica_id
         if (!clinica_id) break
 
-        const plano = (sub.metadata?.plano ?? 'basico') as 'basico' | 'completo'
+        const plano = planoFromSub(sub)
         const status = sub.status === 'active' ? 'ativo' : sub.status === 'past_due' ? 'past_due' : 'cancelado'
         const end = sub.items.data[0]?.current_period_end
 
