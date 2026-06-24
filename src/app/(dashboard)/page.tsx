@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/kpi-card'
-import { CalendarIcon, UsersIcon, WalletIcon } from '@/components/icons'
+import { CalendarIcon, WalletIcon } from '@/components/icons'
 import { DonutChart, WeekChart, type WeekPoint } from '@/components/dashboard-charts'
 import { DashboardHero } from '@/components/dashboard-hero'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
-import { DailyGoals } from '@/components/daily-goals'
 
 const TZ = 'America/Sao_Paulo'
 
@@ -42,6 +42,8 @@ const STATUS_COLOR_FOR_DOT: Record<string, string> = {
   faltou: '#f06a6a',
   cancelado: '#f06a6a',
 }
+
+const CARD_SHADOW = '0 1px 2px rgba(28,27,26,.04),0 10px 26px rgba(28,27,26,.035)'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -103,7 +105,6 @@ export default async function DashboardPage() {
     { label: 'Cancelado', value: statusBuckets.cancelado, color: '#f06a6a' },
   ]
 
-  // Weekly chart points (real counts)
   const weekPoints: WeekPoint[] = []
   const weekDots: Record<string, string | null> = {}
   for (let i = 0; i < 7; i++) {
@@ -112,7 +113,6 @@ export default async function DashboardPage() {
     const iso = isoDate(d)
     const dayAppts = (weekAppts ?? []).filter((a) => a.data === iso)
     weekPoints.push({ label: WEEK_LABELS[i], value: dayAppts.length })
-    // dot color: pick the "highest priority" status of the day (em_atendimento > agendado > concluido)
     if (dayAppts.length === 0) {
       weekDots[iso] = null
     } else {
@@ -122,20 +122,34 @@ export default async function DashboardPage() {
     }
   }
 
-  // Daily goals (compute from data)
-  const concluidasHoje = (hoje ?? []).filter((h) => h.status === 'concluido').length
-  const totalHoje = (hoje ?? []).length
-  const consultasMetaPct = totalHoje > 0 ? Math.round((concluidasHoje / totalHoje) * 100) : 0
-  const avaliacoesHoje = (hoje ?? []).filter((h) => /avalia/i.test(h.tipo_nome ?? '')).length
-  const avaliacoesPct = totalHoje > 0 ? Math.round((avaliacoesHoje / totalHoje) * 100) : 0
-  const retornosHoje = (hoje ?? []).filter((h) => /retorno/i.test(h.tipo_nome ?? '')).length
-  const retornosPct = totalHoje > 0 ? Math.round((retornosHoje / totalHoje) * 100) : 0
-
   const userName = prof?.nome ?? user.email ?? 'Doutor(a)'
 
   return (
     <div className="px-8 py-6 flex flex-col gap-[22px] max-w-[1500px] w-full mx-auto min-w-0">
+
+      {/* Barra de ações — acima do hero */}
+      <div className="flex items-center gap-3">
+        <Link
+          href="/agenda?new=1"
+          className="inline-flex items-center gap-2 bg-[#5b4bd4] text-white px-5 py-2.5 rounded-[12px] text-[14px] font-semibold hover:bg-[#4f40c0] transition-colors shadow-sm"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nova consulta
+        </Link>
+        <Link
+          href="/agenda"
+          className="inline-flex items-center gap-2 border border-[#5b4bd4]/30 text-[#5b4bd4] px-5 py-2.5 rounded-[12px] text-[14px] font-semibold hover:bg-[#f1eefb] transition-colors"
+        >
+          Ver agenda
+        </Link>
+      </div>
+
       <div className="flex gap-[26px] items-start">
+
+        {/* Coluna principal */}
         <div className="flex-1 flex flex-col gap-[22px] min-w-0">
           <DashboardHero
             userName={userName}
@@ -143,20 +157,14 @@ export default async function DashboardPage() {
             proximaHora={proxima ? formatHora(proxima.hora_inicio) : null}
           />
 
-          <div className="grid grid-cols-3 gap-4">
+          {/* KPIs — 2 cards (Pacientes ativos removido) */}
+          <div className="grid grid-cols-2 gap-4">
             <KpiCard
               icon={<CalendarIcon className="w-[19px] h-[19px]" />}
               label="Consultas hoje"
               value={String(kpis?.consultas_hoje ?? 0)}
               color="purple"
               sparkline="up"
-            />
-            <KpiCard
-              icon={<UsersIcon className="w-[19px] h-[19px]" />}
-              label="Pacientes ativos"
-              value={String(kpis?.pacientes_ativos ?? 0)}
-              color="green"
-              sparkline="climb"
             />
             <KpiCard
               icon={<WalletIcon className="w-[19px] h-[19px]" />}
@@ -168,7 +176,8 @@ export default async function DashboardPage() {
             />
           </div>
 
-          <div className="bg-card border border-border rounded-[18px] p-5" style={{ boxShadow: '0 1px 2px rgba(28,27,26,.04),0 10px 26px rgba(28,27,26,.035)' }}>
+          {/* Gráfico semanal */}
+          <div className="bg-card border border-border rounded-[18px] p-5" style={{ boxShadow: CARD_SHADOW }}>
             <div className="flex justify-between items-center">
               <div className="font-newsreader font-semibold text-[19px] text-text">Atendimentos da semana</div>
               <div className="flex gap-1.5">
@@ -180,9 +189,8 @@ export default async function DashboardPage() {
               <WeekChart points={weekPoints} />
             </div>
           </div>
-        </div>
 
-        <aside className="w-[340px] flex-none flex flex-col gap-[18px]">
+          {/* Minha Agenda — movida para o rodapé da coluna */}
           <DashboardCalendar
             events={(hoje ?? []).map((e) => ({
               id: e.id ?? '',
@@ -194,19 +202,38 @@ export default async function DashboardPage() {
             }))}
             weekDots={weekDots}
           />
+        </div>
 
-          <div className="bg-card border border-border rounded-[18px] p-[18px]" style={{ boxShadow: '0 1px 2px rgba(28,27,26,.04),0 10px 26px rgba(28,27,26,.035)' }}>
+        {/* Coluna lateral */}
+        <aside className="w-[340px] flex-none flex flex-col gap-[18px]">
+
+          {/* Avisos — placeholder (funcionalidade futura) */}
+          <div className="bg-card border border-border rounded-[18px] p-[18px]" style={{ boxShadow: CARD_SHADOW }}>
+            <div className="font-newsreader font-semibold text-[18px] text-text mb-3">Avisos</div>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-start gap-3 bg-[#f1eefb] rounded-[13px] px-3.5 py-3">
+                <span className="mt-0.5 w-5 h-5 rounded-full bg-[#6d5ae6] flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="w-3 h-3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                <div>
+                  <div className="text-[13px] font-semibold text-[#2c2456] leading-snug">Bem-vindo ao Useclin!</div>
+                  <div className="text-[11.5px] text-[#7c6fae] mt-0.5">Os avisos da clínica aparecerão aqui.</div>
+                </div>
+              </div>
+              <div className="text-center py-4 text-[12px] text-muted">
+                Nenhum aviso no momento.
+              </div>
+            </div>
+          </div>
+
+          {/* Consultas por status */}
+          <div className="bg-card border border-border rounded-[18px] p-[18px]" style={{ boxShadow: CARD_SHADOW }}>
             <div className="font-newsreader font-semibold text-[18px] text-text mb-3.5">Consultas por status</div>
             <DonutChart data={statusChart} />
           </div>
 
-          <DailyGoals
-            goals={[
-              { label: 'Consultas concluídas', pct: consultasMetaPct, gradient: 'linear-gradient(90deg,#6d5ae6,#8472f2)' },
-              { label: 'Avaliações', pct: avaliacoesPct, gradient: 'linear-gradient(90deg,#2fb98a,#46c89a)' },
-              { label: 'Retornos', pct: retornosPct, gradient: 'linear-gradient(90deg,#e7942a,#f5b04d)' },
-            ]}
-          />
         </aside>
       </div>
     </div>
