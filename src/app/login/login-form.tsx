@@ -15,77 +15,105 @@ export function LoginForm({ next, initialError }: { next: string; initialError?:
       setPending(false)
       setError(result.error)
     }
-    // redirect on success happens server-side
   }
 
   return (
-    <div className="w-full max-w-[420px]">
-      <div className="flex items-center justify-center gap-3 mb-8">
-        <svg viewBox="0 0 40 40" fill="none" className="w-10 h-10">
-          <circle cx="20" cy="20" r="18" stroke="#d4c5a9" strokeWidth="1.5" />
-          <path d="M20 8 C16 12, 12 14, 12 20 C12 24, 14 28, 20 32 C26 28, 28 24, 28 20 C28 14, 24 12, 20 8Z" stroke="#d4c5a9" strokeWidth="1.2" fill="none" />
-          <path d="M14 16 Q17 20, 20 16 Q23 20, 26 16" stroke="#d4c5a9" strokeWidth="1" fill="none" />
-          <path d="M15 22 Q17.5 26, 20 22 Q22.5 26, 25 22" stroke="#d4c5a9" strokeWidth="1" fill="none" />
-        </svg>
-        <div>
-          <span className="font-playfair text-xl font-extrabold tracking-tight">Useclin</span>
-          <span className="text-[9px] font-semibold text-muted tracking-[2px] uppercase block -mt-0.5">Gestão de Clínicas</span>
+    <div className="w-full max-w-[760px] rounded-[28px] overflow-hidden shadow-2xl flex min-h-[420px]">
+      {/* Left panel — brand */}
+      <div
+        className="hidden md:flex flex-col items-center justify-between p-10 w-[320px] shrink-0"
+        style={{ backgroundColor: '#5B66DA' }}
+      >
+        {/* Logo */}
+        <div className="flex-1 flex items-center justify-center">
+          <svg viewBox="0 0 160 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-40">
+            {/* u mark */}
+            <path
+              d="M6 8 L6 28 Q6 40 18 40 Q30 40 30 28 L30 8"
+              stroke="white" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" fill="none"
+            />
+            {/* seclin text */}
+            <text x="38" y="38" fontFamily="'Hanken Grotesk', sans-serif" fontSize="30" fontWeight="700" fill="white" letterSpacing="-0.5">
+              seclin
+            </text>
+          </svg>
         </div>
+
+        {/* CTA button */}
+        <button
+          type="button"
+          className="flex items-center gap-2 px-7 py-3 bg-white rounded-full text-sm font-semibold transition-opacity hover:opacity-90 cursor-pointer"
+          style={{ color: '#5B66DA' }}
+        >
+          <span>←</span>
+          <span>Contrate agora</span>
+        </button>
       </div>
 
-      <form
-        action={handleSubmit}
-        className="bg-card border border-border rounded-[18px] p-8 shadow-sm flex flex-col gap-5"
-      >
-        <div className="text-center mb-2">
-          <h1 className="font-playfair text-2xl font-extrabold tracking-tight">Entrar</h1>
-          <p className="text-sm text-muted mt-1">Acesse sua conta para continuar</p>
-        </div>
+      {/* Right panel — form */}
+      <div className="flex-1 bg-white flex flex-col justify-center px-10 py-12">
+        <h1 className="text-2xl font-bold text-[#1e1b4b] mb-8">Bem vindo!</h1>
 
-        <input type="hidden" name="next" value={next} />
+        <form action={handleSubmit} className="flex flex-col gap-6">
+          <input type="hidden" name="next" value={next} />
 
-        <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 block">Email</label>
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="voce@clinica.com.br"
-            className="w-full px-4 py-3 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 block">Senha</label>
-          <input
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            placeholder="••••••••"
-            className="w-full px-4 py-3 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
-          />
-        </div>
-
-        {error && (
-          <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">
-            {error}
+          {/* Email */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-[#1e1b4b]">Email</label>
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="seu@email.com"
+              className="border-0 border-b border-[#d1d5db] pb-2 text-sm text-[#1e1b4b] placeholder:text-[#9ca3af] outline-none focus:border-[#5B66DA] transition-colors bg-transparent"
+            />
           </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-text text-white rounded-[13px] text-sm font-semibold hover:bg-[#333] transition-all hover:-translate-y-px hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {pending ? 'Entrando…' : 'Entrar →'}
-        </button>
+          {/* Senha */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-[#1e1b4b]">Senha</label>
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="sua senha"
+              className="border-0 border-b border-[#d1d5db] pb-2 text-sm text-[#1e1b4b] placeholder:text-[#9ca3af] outline-none focus:border-[#5B66DA] transition-colors bg-transparent"
+            />
+            <button
+              type="button"
+              className="self-start text-xs mt-1 cursor-pointer hover:underline"
+              style={{ color: '#5B66DA' }}
+            >
+              Esqueceu sua senha?
+            </button>
+          </div>
 
-        <p className="text-[11px] text-muted text-center mt-2">
-          Sua clínica ainda não tem acesso? Entre em contato com o administrador da plataforma.
-        </p>
-      </form>
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 font-medium">
+              {error}
+            </p>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={pending}
+            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90 hover:-translate-y-px cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            style={{ backgroundColor: '#1e1b4b' }}
+          >
+            {pending ? 'Entrando…' : 'Acessar →'}
+          </button>
+
+          <p className="text-xs text-center" style={{ color: '#5B66DA' }}>
+            Precisa de ajuda?{' '}
+            <button type="button" className="underline cursor-pointer hover:opacity-70">
+              Clique aqui
+            </button>
+          </p>
+        </form>
+      </div>
     </div>
   )
 }
