@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from '../database.types'
@@ -26,3 +27,17 @@ export async function createClient() {
     },
   )
 }
+
+/**
+ * Usuário autenticado, deduplicado por request com React `cache()`. Assim o
+ * layout do dashboard e a página compartilham UMA única chamada a `getUser()`
+ * em vez de cada um fazer seu próprio round-trip ao Supabase Auth. O proxy roda
+ * em outro contexto (middleware) e mantém a própria verificação.
+ */
+export const getCurrentUser = cache(async () => {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user
+})

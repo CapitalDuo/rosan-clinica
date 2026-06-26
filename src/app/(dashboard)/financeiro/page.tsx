@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { FinanceiroView, type EntradaRow, type SeriePonto } from '@/components/financeiro-view'
 
 function startOfMonth(d: Date) {
@@ -37,11 +37,9 @@ type Entrada = {
 }
 
 export default async function FinanceiroPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
+  const supabase = await createClient()
 
   const today = new Date()
   const monthStart = startOfMonth(today)

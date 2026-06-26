@@ -1,14 +1,11 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { AdminSidebar } from '@/components/admin-sidebar'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const user = await getCurrentUser()
   if (!user) redirect('/login?next=/admin')
+  const supabase = await createClient()
 
   const { data: admin } = await supabase
     .from('plataforma_admins')

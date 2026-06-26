@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/kpi-card'
 import { CalendarIcon, WalletIcon } from '@/components/icons'
 import { DonutChart, WeekChart, type WeekPoint } from '@/components/dashboard-charts'
@@ -46,11 +46,9 @@ const STATUS_COLOR_FOR_DOT: Record<string, string> = {
 const CARD_SHADOW = '0 1px 2px rgba(28,27,26,.04),0 10px 26px rgba(28,27,26,.035)'
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
+  const supabase = await createClient()
 
   const today = todayISO()
   const nowTime = new Date().toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit' })

@@ -1,15 +1,13 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PacientesView } from '@/components/pacientes-view'
 import { AtendimentoLocked } from '@/components/atendimento-locked'
 import { planoEfetivo } from '@/lib/plano'
 
 export default async function AtendimentoPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
+  const supabase = await createClient()
 
   const { data: prof } = await supabase
     .from('profissionais')

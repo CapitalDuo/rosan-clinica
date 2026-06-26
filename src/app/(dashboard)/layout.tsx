@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/sidebar'
 import { isTrialAtivo, trialDiasRestantes } from '@/lib/plano'
 
@@ -8,25 +8,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
 
-  const { data: admin } = await supabase
-    .from('plataforma_admins')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  const supabase = await createClient()
+
+  // admin e prof são independentes → buscamos em paralelo (um round-trip a menos).
+  const [{ data: admin }, { data: prof }] = await Promise.all([
+    supabase.from('plataforma_admins').select('user_id').eq('user_id', user.id).maybeSingle(),
+    supabase
+      .from('profissionais')
+      .select('nome, role, iniciais, clinica_id')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ])
 
   if (admin) redirect('/admin')
-
-  const { data: prof } = await supabase
-    .from('profissionais')
-    .select('nome, role, iniciais, clinica_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
 
   let clinicLogoUrl: string | null = null
   let trialBanner: { dias: number; expirou: boolean } | null = null

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import {
   ConfiguracoesView,
   type HorarioRow,
@@ -20,11 +20,9 @@ const NOTIF_DEFAULTS: Notificacoes = {
 }
 
 export default async function ConfiguracoesPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
+  const supabase = await createClient()
 
   const { data: prof } = await supabase
     .from('profissionais')
