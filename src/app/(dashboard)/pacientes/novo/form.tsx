@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { createPacienteAction } from '../actions'
+import { PageLoader } from '@/components/page-loader'
 
 type Plano = { id: string; nome: string; tipo: string }
 
@@ -21,7 +22,9 @@ export function NovoPacienteForm({ planos }: { planos: Plano[] }) {
   }
 
   return (
-    <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-7 flex flex-col gap-5">
+    <>
+      {pending && <PageLoader message="Salvando paciente…" />}
+      <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-7 flex flex-col gap-5">
       <div>
         <h3 className="font-playfair text-base font-bold mb-4">Identificação</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -93,7 +96,8 @@ export function NovoPacienteForm({ planos }: { planos: Plano[] }) {
           {pending ? 'Salvando…' : 'Cadastrar paciente'}
         </button>
       </div>
-    </form>
+      </form>
+    </>
   )
 }
 

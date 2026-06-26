@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createProntuarioAction } from './actions'
+import { PageLoader } from '@/components/page-loader'
 
 export function NovoProntuarioForm({ pacienteId }: { pacienteId: string }) {
   const router = useRouter()
@@ -42,7 +43,9 @@ export function NovoProntuarioForm({ pacienteId }: { pacienteId: string }) {
   }
 
   return (
-    <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-6 flex flex-col gap-4">
+    <>
+      {pending && <PageLoader message="Salvando registro…" />}
+      <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-6 flex flex-col gap-4">
       <h3 className="font-playfair text-base font-bold">Novo registro</h3>
 
       <div>
@@ -94,6 +97,7 @@ export function NovoProntuarioForm({ pacienteId }: { pacienteId: string }) {
           {pending ? 'Salvando…' : 'Salvar registro'}
         </button>
       </div>
-    </form>
+      </form>
+    </>
   )
 }

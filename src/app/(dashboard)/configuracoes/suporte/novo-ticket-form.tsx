@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createTicketAction } from '@/lib/actions/suporte'
+import { PageLoader } from '@/components/page-loader'
 
 const CATEGORIAS = [
   { value: 'geral', label: 'Geral' },
@@ -22,11 +23,12 @@ export function NovoTicketForm() {
     setPending(true)
     setError(null)
     const result = await createTicketAction(formData)
-    setPending(false)
     if (!result.ok) {
+      setPending(false)
       setError(result.error)
       return
     }
+    // mantém pending=true: o overlay fica visível até a nova página carregar
     router.push(`/configuracoes/suporte/${result.ticketId}`)
   }
 
@@ -49,7 +51,9 @@ export function NovoTicketForm() {
   }
 
   return (
-    <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-6 flex flex-col gap-4">
+    <>
+      {pending && <PageLoader message="Abrindo solicitação…" />}
+      <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-6 flex flex-col gap-4">
       <h2 className="font-playfair text-base font-bold">Nova solicitação</h2>
 
       <div>
@@ -104,6 +108,7 @@ export function NovoTicketForm() {
           {pending ? 'Enviando…' : 'Abrir solicitação'}
         </button>
       </div>
-    </form>
+      </form>
+    </>
   )
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { updatePacienteAction, deletePacienteAction } from '../../actions'
+import { PageLoader } from '@/components/page-loader'
 
 type Plano = { id: string; nome: string; tipo: string }
 type Paciente = {
@@ -47,7 +48,11 @@ export function EditarPacienteForm({ paciente, planos }: { paciente: Paciente; p
   }
 
   return (
-    <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-7 flex flex-col gap-5">
+    <>
+      {(pending || deleting) && (
+        <PageLoader message={deleting ? 'Excluindo paciente…' : 'Salvando alterações…'} />
+      )}
+      <form action={handleSubmit} className="bg-card border border-border rounded-[14px] p-7 flex flex-col gap-5">
       <div>
         <h3 className="font-playfair text-base font-bold mb-4">Identificação</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -159,7 +164,8 @@ export function EditarPacienteForm({ paciente, planos }: { paciente: Paciente; p
           </button>
         </div>
       </div>
-    </form>
+      </form>
+    </>
   )
 }
 

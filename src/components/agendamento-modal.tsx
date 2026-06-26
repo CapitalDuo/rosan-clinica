@@ -10,6 +10,7 @@ import {
   getAgendamentoAction,
 } from '@/app/(dashboard)/agenda/actions'
 import { formatBrlPlain, parseBrlInput } from '@/lib/currency'
+import { PageLoader } from '@/components/page-loader'
 
 type Paciente = { id: string; nome: string }
 type Profissional = { id: string; nome: string; especialidade: string | null }
@@ -185,7 +186,9 @@ export function AgendamentoModal({
     : 'Agendar uma nova consulta para um paciente'
 
   return (
-    <div
+    <>
+      {pending && <PageLoader message={isEdit ? 'Salvando…' : 'Agendando consulta…'} />}
+      <div
       className="fixed inset-0 z-50 flex items-start sm:items-center justify-center px-4 py-8 sm:py-10 bg-text/30 backdrop-blur-sm overflow-y-auto"
       role="dialog"
       aria-modal="true"
@@ -426,6 +429,7 @@ export function AgendamentoModal({
           </form>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
