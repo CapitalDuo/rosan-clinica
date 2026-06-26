@@ -10,7 +10,7 @@ export function parseBrlInput(raw: string): { valor: number; formatted: string }
   if (!trimmed) return null
 
   // Remove "R$", espaços, e qualquer letra. Mantém dígitos, ponto e vírgula.
-  let s = trimmed.replace(/[^0-9.,-]/g, '')
+  const s = trimmed.replace(/[^0-9.,-]/g, '')
   if (!s) return null
 
   // Se tem ambos . e ,: o último separador é decimal, o outro é milhar.

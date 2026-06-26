@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+
 // global-error substitui o layout raiz quando um erro escapa de todos os
 // boundaries abaixo (inclusive o do layout do dashboard). Por isso precisa
 // declarar <html>/<body> e usar estilos inline — o globals.css do layout raiz
@@ -11,6 +13,10 @@ export default function GlobalError({
   error: Error & { digest?: string }
   unstable_retry: () => void
 }) {
+  useEffect(() => {
+    console.error('[global-error]', error)
+  }, [error])
+
   return (
     <html lang="pt-BR">
       <body

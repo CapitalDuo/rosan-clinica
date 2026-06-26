@@ -22,5 +22,3 @@ export const PLANS = {
     features: ['Tudo do Básico', 'Atendimento via WhatsApp', 'Agente de IA', 'Suporte prioritário'],
   },
 } as const
-
-export type PlanSlug = 'gratuito' | 'basico' | 'completo'

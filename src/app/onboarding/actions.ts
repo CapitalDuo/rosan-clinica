@@ -1,6 +1,5 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 const WEEKDAY_MAP: Record<string, number> = {
@@ -169,8 +168,4 @@ export async function uploadLogoAction(
 
   const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(path)
   return { ok: true, url: publicUrl }
-}
-
-export async function skipToDashboardAction() {
-  redirect('/')
 }

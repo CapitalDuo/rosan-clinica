@@ -1,10 +1,9 @@
-import type { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 
 // Cancela a assinatura no fim do período pago (mantém acesso até lá).
-export async function POST(_req: NextRequest) {
+export async function POST() {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
