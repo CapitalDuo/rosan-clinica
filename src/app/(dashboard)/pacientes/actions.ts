@@ -4,19 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/ratelimit'
-
-const PALETTE = ['#b8a88a', '#8ab89b', '#a88ab8', '#8a8ab8', '#b88a8a', '#8ab8b8', '#b8b88a']
-
-function iniciais(nome: string) {
-  const parts = nome.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
-
-function randomColor() {
-  return PALETTE[Math.floor(Math.random() * PALETTE.length)]
-}
+import { iniciais, randomColor } from '@/lib/avatar'
 
 export async function createPacienteAction(formData: FormData) {
   const nome = String(formData.get('nome') ?? '').trim()

@@ -1,18 +1,10 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { iniciais, AVATAR_PALETTE } from '@/lib/avatar'
 
 const WEEKDAY_MAP: Record<string, number> = {
   dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6,
-}
-
-const PALETTE = ['#b8a88a', '#8ab89b', '#a88ab8', '#8a8ab8', '#b88a8a', '#8ab8b8']
-
-function iniciais(nome: string) {
-  const parts = nome.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 function parseValor(v: string): number | null {
@@ -84,7 +76,7 @@ export async function completeOnboarding(payload: OnboardingPayload) {
       registro: p.registro || null,
       role: 'profissional',
       iniciais: iniciais(p.nome),
-      cor: PALETTE[(i + 1) % PALETTE.length],
+      cor: AVATAR_PALETTE[(i + 1) % AVATAR_PALETTE.length],
     }))
 
   if (extras.length > 0) {

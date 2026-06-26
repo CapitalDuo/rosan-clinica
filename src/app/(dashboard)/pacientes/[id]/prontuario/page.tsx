@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { NovoProntuarioForm } from './form'
+import { Avatar } from '@/components/avatar'
 
 export default async function ProntuarioPage({
   params,
@@ -37,12 +38,7 @@ export default async function ProntuarioPage({
       </div>
 
       <div className="flex items-center gap-4 mb-7">
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white"
-          style={{ background: paciente.cor ?? '#b8a88a' }}
-        >
-          {paciente.iniciais ?? paciente.nome.slice(0, 2).toUpperCase()}
-        </div>
+        <Avatar initials={paciente.iniciais ?? paciente.nome.slice(0, 2).toUpperCase()} cor={paciente.cor} size="lg" />
         <div>
           <h1 className="font-playfair text-[28px] font-extrabold tracking-tight">{paciente.nome}</h1>
           <p className="text-sm text-muted mt-0.5">Prontuário · {prontuarios?.length ?? 0} registro{prontuarios?.length === 1 ? '' : 's'}</p>

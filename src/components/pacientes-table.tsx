@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import { SearchIcon } from '@/components/icons'
+import { Avatar } from '@/components/avatar'
 
 export type PacienteRow = {
   id: string | null
@@ -132,9 +133,7 @@ export function PacientesTable({ pacientes }: { pacientes: PacienteRow[] }) {
                   <td className="px-4 py-3.5 text-sm text-muted">#{p.codigo}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: p.cor ?? '#b8a88a' }}>
-                        {p.iniciais ?? (p.nome ?? '?').slice(0, 2).toUpperCase()}
-                      </div>
+                      <Avatar initials={p.iniciais ?? (p.nome ?? '?').slice(0, 2).toUpperCase()} cor={p.cor} size="sm" />
                       <div className="min-w-0">
                         <div className="text-sm font-semibold truncate">{p.nome}</div>
                         {p.tags && p.tags.length > 0 && (

@@ -2,13 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-
-function iniciais(nome: string) {
-  const parts = nome.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
+import { iniciais, COR_AVATAR_PADRAO } from '@/lib/avatar'
 
 export async function createClinicaAction(formData: FormData) {
   const clinicaNome = String(formData.get('clinica_nome') ?? '').trim()
@@ -42,7 +36,7 @@ export async function createClinicaAction(formData: FormData) {
     email: adminEmail,
     role: 'admin',
     iniciais: iniciais(adminNome),
-    cor: '#b8a88a',
+    cor: COR_AVATAR_PADRAO,
   })
 
   if (profError) {

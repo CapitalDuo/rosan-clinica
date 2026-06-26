@@ -4,6 +4,8 @@ import { useEffect, useRef, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { SearchIcon, CalendarIcon, ChatIcon, SendIcon, PaperclipIcon, SmileIcon } from '@/components/icons'
+import { Avatar } from '@/components/avatar'
+import { corParaNome } from '@/lib/avatar'
 import {
   criarConexaoWhatsappAction,
   verificarStatusWhatsappAction,
@@ -34,20 +36,15 @@ function WhatsAppIcon({ className }: { className?: string }) {
 }
 
 function ChatAvatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'lg' }) {
+  // Iniciais do chat = 1ª letra das duas primeiras palavras (convenção própria
+  // do WhatsApp, diferente de iniciais() de pacientes).
   const initials = name
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('') || '?'
-  const palette = ['bg-[#b8a88a]', 'bg-[#8ab89b]', 'bg-[#a88ab8]', 'bg-[#b88a8a]', 'bg-[#8ab8b8]', 'bg-[#b8b88a]']
-  const bg = palette[name.charCodeAt(0) % palette.length]
-  const cls = size === 'lg' ? 'w-14 h-14 text-lg' : 'w-10 h-10 text-[13px]'
-  return (
-    <div className={`${cls} ${bg} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0`}>
-      {initials}
-    </div>
-  )
+  return <Avatar initials={initials} cor={corParaNome(name)} size={size === 'lg' ? 'xl' : 'md'} />
 }
 
 function formatTs(ts: number | null | undefined): string {
