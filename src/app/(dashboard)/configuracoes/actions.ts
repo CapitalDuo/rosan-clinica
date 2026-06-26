@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { WEEKDAY_KEYS } from '@/lib/weekdays'
 
 async function clinicaIdOf(userId: string) {
   const supabase = await createClient()
@@ -70,8 +71,6 @@ export async function updateClinicaAction(formData: FormData) {
   revalidatePath('/admin/clinicas')
   return { ok: true as const }
 }
-
-const WEEKDAY_KEYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const
 
 export async function updateHorariosAction(formData: FormData) {
   const supabase = await createClient()

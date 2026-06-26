@@ -13,6 +13,7 @@ import {
   type NotificacaoTipo,
 } from '@/app/(dashboard)/configuracoes/actions'
 import { WalletIcon, HomeIcon, UserIcon, BellIcon, ClockIcon, ChatIcon } from '@/components/icons'
+import { WEEKDAY_KEYS, DAY_LABELS } from '@/lib/weekdays'
 
 export type Clinica = {
   id: string
@@ -60,9 +61,7 @@ export type WhatsappInstancia = {
 
 export type Notificacoes = Record<NotificacaoTipo, boolean>
 
-const DAY_LABELS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
-const DAY_KEYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
 
 const NOTIF_ITEMS: { tipo: NotificacaoTipo; label: string; descricao: string }[] = [
   { tipo: 'lembrete_consulta', label: 'Lembrete de consulta', descricao: 'Enviar lembrete 24h antes da consulta' },
@@ -936,7 +935,7 @@ function HorariosModal({ initial, onClose }: { initial: HorarioRow[]; onClose: (
           {DAY_ORDER.map((dia) => {
             const row = rows.find((r) => r.dia_semana === dia)
             if (!row) return null
-            const key = DAY_KEYS[dia]
+            const key = WEEKDAY_KEYS[dia]
             return (
               <div key={dia} className="flex flex-col py-2.5 px-4 rounded-[13px] bg-bg">
                 <div className="flex items-center gap-4">

@@ -3,10 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { iniciais, AVATAR_PALETTE } from '@/lib/avatar'
 import { parseBrlInput } from '@/lib/currency'
-
-const WEEKDAY_MAP: Record<string, number> = {
-  dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6,
-}
+import { WEEKDAY_MAP } from '@/lib/weekdays'
 
 export type OnboardingPayload = {
   clinic: { telefone: string; cnpj: string; endereco: string; logo_url?: string | null; maps_url?: string | null }
