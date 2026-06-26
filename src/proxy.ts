@@ -1,8 +1,15 @@
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/proxy'
 
 export async function proxy(request: NextRequest) {
-  return updateSession(request)
+  try {
+    return await updateSession(request)
+  } catch {
+    // Falha transitória ao validar a sessão (ex.: Supabase Auth indisponível por
+    // um instante) não pode derrubar a navegação com um 500. Deixa a requisição
+    // seguir — o layout revalida a sessão e os error boundaries cobrem o resto.
+    return NextResponse.next({ request })
+  }
 }
 
 export const config = {
