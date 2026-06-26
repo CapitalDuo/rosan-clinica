@@ -1,8 +1,10 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { completeOnboarding, uploadLogoAction } from '@/app/onboarding/actions'
 import { HomeIcon, UsersIcon, ClockIcon, ChatIcon, CheckCircleIcon, UploadIcon, WalletIcon } from '@/components/icons'
+import { PageLoader } from '@/components/page-loader'
 
 const STEPS = [
   { label: 'Clínica',      Icon: HomeIcon },
@@ -49,6 +51,7 @@ export function OnboardingFlow({
   clinicName: string
   initialClinic: Omit<ClinicData, 'logo_url'>
 }) {
+  const router = useRouter()
   const [step, setStep] = useState(0)
   const [stepError, setStepError] = useState<string | null>(null)
   const [clinic, setClinic] = useState<ClinicData>({ ...initialClinic, logo_url: null, maps_url: '' })
@@ -162,12 +165,14 @@ export function OnboardingFlow({
       setSaveError(result.error)
       return
     }
-    window.location.href = '/'
+    router.push('/')
   }
 
   const StepIcon = STEPS[step].Icon
 
   return (
+    <>
+    {saving && <PageLoader message="Salvando sua clínica..." />}
     <div className="w-full max-w-[640px]">
       <div className="flex items-center justify-center gap-3 mb-8">
         <svg viewBox="0 0 40 40" fill="none" className="w-10 h-10">
@@ -594,6 +599,7 @@ export function OnboardingFlow({
         </div>
       </div>
     </div>
+    </>
   )
 }
 

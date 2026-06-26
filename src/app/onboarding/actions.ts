@@ -103,7 +103,9 @@ export async function completeOnboarding(payload: OnboardingPayload) {
     intervalo_fim: day.aberto && day.intervalo ? day.intervalo_fim : null,
   }))
 
-  const { error: schedError } = await supabase.from('horarios_funcionamento').insert(horarios)
+  const { error: schedError } = await supabase
+    .from('horarios_funcionamento')
+    .upsert(horarios, { onConflict: 'clinica_id,dia_semana' })
   if (schedError) return { ok: false as const, error: schedError.message }
 
   const servicosToSave = payload.servicos
