@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 export function PageLoader({ message = 'Aguarde...' }: { message?: string }) {
   return (
     <div
@@ -15,9 +17,16 @@ export function PageLoader({ message = 'Aguarde...' }: { message?: string }) {
           />
           <svg viewBox="0 0 40 40" fill="none" className="w-8 h-8">
             <circle cx="20" cy="20" r="18" stroke="#5b4bd4" strokeWidth="1.5" />
-            {/* Marca Useclin — "U" */}
-            <path d="M15 14 L15 20 C15 23.7 17.2 26 20 26 C22.8 26 25 23.7 25 20 L25 14 C25 12.8 24.1 12.1 23.2 12.5" stroke="#5b4bd4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
           </svg>
+          {/* Marca oficial Useclin */}
+          <Image
+            src="/useclin-icon.png"
+            alt="Useclin"
+            width={16}
+            height={16}
+            priority
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
+          />
         </div>
         <p className="text-sm font-semibold tracking-wide" style={{ color: 'rgba(255,255,255,0.70)' }}>
           {message}
