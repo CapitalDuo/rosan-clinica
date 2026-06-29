@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/sidebar'
-import { isTrialAtivo, trialDiasRestantes } from '@/lib/plano'
+import { PlanoGate } from '@/components/plano-gate'
+import { isTrialAtivo, planoEfetivo, trialDiasRestantes } from '@/lib/plano'
 
 export default async function DashboardLayout({
   children,
@@ -27,6 +28,7 @@ export default async function DashboardLayout({
 
   let clinicLogoUrl: string | null = null
   let trialBanner: { dias: number; expirou: boolean } | null = null
+  let bloqueado = false
 
   if (prof?.clinica_id) {
     const { data: clinica } = await supabase
@@ -45,6 +47,12 @@ export default async function DashboardLayout({
       const dias = trialDiasRestantes(clinica.trial_ends_at ?? null)
       trialBanner = { dias, expirou: !ativo }
     }
+
+    // Bloqueio total: gratuito com teste expirado (planoEfetivo retorna 'gratuito').
+    // Planos pagos / trial ativo nunca caem aqui.
+    if (clinica) {
+      bloqueado = planoEfetivo(clinica.plano_slug, clinica.trial_ends_at ?? null) === 'gratuito'
+    }
   }
 
   return (
@@ -62,7 +70,7 @@ export default async function DashboardLayout({
         {trialBanner && (
           trialBanner.expirou ? (
             <div className="flex items-center justify-between gap-4 px-8 py-2.5 bg-[#fdeaea] border-b border-[#d24343]/20 text-sm text-[#d24343] rounded-tl-[26px]">
-              <span className="font-medium">Seu período de teste encerrou — o módulo de Atendimento está restrito.</span>
+              <span className="font-medium">Seu período de teste encerrou — assine um plano para continuar usando a plataforma.</span>
               <a href="/configuracoes" className="whitespace-nowrap font-semibold underline hover:opacity-80 transition-opacity">
                 Assinar agora →
               </a>
@@ -81,7 +89,9 @@ export default async function DashboardLayout({
             </div>
           )
         )}
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 flex flex-col">
+          <PlanoGate bloqueado={bloqueado}>{children}</PlanoGate>
+        </main>
       </div>
     </div>
   )
