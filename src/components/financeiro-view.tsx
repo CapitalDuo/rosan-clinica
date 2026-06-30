@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { formatBrl } from '@/lib/currency'
+import { excluirLancamentoAction } from '@/app/(dashboard)/financeiro/actions'
 
 export type SeriePonto = { label: string; valor: number; data: string }
 
 export type EntradaRow = {
   id: string
+  tipo: 'receita' | 'despesa'
+  avulsa: boolean
   paciente_nome: string
   paciente_iniciais: string
   paciente_cor: string
@@ -27,6 +32,7 @@ export function FinanceiroView({
   faturamentoMensal,
   recebidoPago,
   aReceber,
+  despesasMensal,
   weekSerie,
   monthSerie,
   ultimasEntradas,
@@ -34,6 +40,7 @@ export function FinanceiroView({
   faturamentoMensal: number
   recebidoPago: number
   aReceber: number
+  despesasMensal: number
   weekSerie: SeriePonto[]
   monthSerie: SeriePonto[]
   ultimasEntradas: EntradaRow[]
@@ -67,7 +74,7 @@ export function FinanceiroView({
           <button
             type="button"
             disabled
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-[13px] bg-text text-white text-sm font-semibold hover:bg-[#333] transition-colors cursor-not-allowed opacity-60"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-[13px] border border-border bg-card text-sm font-semibold text-text hover:bg-bg transition-colors cursor-not-allowed opacity-60"
             title="Em breve"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -77,10 +84,20 @@ export function FinanceiroView({
             </svg>
             Exportar
           </button>
+          <Link
+            href="/financeiro/nova"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-[13px] bg-text text-white text-sm font-semibold hover:bg-[#333] transition-all hover:-translate-y-px hover:shadow-lg cursor-pointer"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Novo lançamento
+          </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 mb-6">
         <KpiCard
           title="Faturamento Mensal"
           value={faturamentoMensal}
@@ -118,6 +135,19 @@ export function FinanceiroView({
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+        />
+        <KpiCard
+          title="Despesas do Mês"
+          value={despesasMensal}
+          accent="#e5534b"
+          accentBg="linear-gradient(135deg, #fcebea 0%, #f6cdca 100%)"
+          serie={weekSerie}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+              <polyline points="3 7 9 13 13 9 21 17" />
+              <polyline points="14 17 21 17 21 10" />
             </svg>
           }
         />
@@ -379,29 +409,85 @@ function BarChart({ serie }: { serie: SeriePonto[] }) {
 function EntradaItem({ entrada }: { entrada: EntradaRow }) {
   const sty = STATUS_STYLE[entrada.status] ?? STATUS_STYLE.pendente
   const dateLabel = formatEntradaDate(entrada.data)
+  const isDespesa = entrada.tipo === 'despesa'
+  const titulo = entrada.paciente_nome !== '—' ? entrada.paciente_nome : entrada.descricao
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border last:border-0">
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white flex-shrink-0"
-        style={{ background: entrada.paciente_cor }}
+        style={{ background: isDespesa ? '#e5534b' : entrada.paciente_cor }}
       >
-        {(entrada.paciente_iniciais ?? '?').slice(0, 2).toUpperCase()}
+        {isDespesa ? '−' : (entrada.paciente_iniciais ?? '?').slice(0, 2).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[14px] font-semibold text-text truncate">{entrada.paciente_nome}</div>
+        <div className="text-[14px] font-semibold text-text truncate">{titulo}</div>
         <div className="text-[11.5px] text-muted truncate">
           {dateLabel}
           {entrada.hora ? `, ${entrada.hora}` : ''}
         </div>
       </div>
       <div className="text-right flex-shrink-0">
-        <div className="text-[14px] font-bold text-text">{formatBrl(entrada.valor)}</div>
+        <div className={`text-[14px] font-bold ${isDespesa ? 'text-red' : 'text-text'}`}>
+          {isDespesa ? '− ' : ''}
+          {formatBrl(entrada.valor)}
+        </div>
         <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md mt-0.5 ${sty.bg} ${sty.text}`}>
           {sty.label}
         </span>
       </div>
+      {entrada.avulsa && <DeleteLancamentoButton id={entrada.id} />}
     </div>
+  )
+}
+
+function DeleteLancamentoButton({ id }: { id: string }) {
+  const router = useRouter()
+  const [confirming, setConfirming] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  function handleDelete() {
+    startTransition(async () => {
+      await excluirLancamentoAction(id)
+      setConfirming(false)
+      router.refresh()
+    })
+  }
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          onClick={handleDelete}
+          disabled={isPending}
+          className="text-[11px] font-semibold px-2 py-1 rounded-[8px] bg-red/10 text-red hover:bg-red hover:text-white transition-colors disabled:opacity-50"
+        >
+          {isPending ? '...' : 'Sim'}
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          disabled={isPending}
+          className="text-[11px] font-semibold px-2 py-1 rounded-[8px] bg-bg text-muted hover:text-text transition-colors border border-border"
+        >
+          Não
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      className="p-1.5 rounded-[8px] text-muted hover:text-red hover:bg-red/10 transition-colors flex-shrink-0"
+      title="Excluir lançamento"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+      </svg>
+    </button>
   )
 }
 

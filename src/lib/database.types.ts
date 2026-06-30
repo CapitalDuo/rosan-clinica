@@ -928,36 +928,39 @@ export type Database = {
       transacoes: {
         Row: {
           agendamento_id: string | null
+          clinica_id: string
           created_at: string
           data: string
           descricao: string | null
           forma_pagamento: string | null
           id: string
-          paciente_id: string
+          paciente_id: string | null
           status: string
           tipo: string
           valor: number
         }
         Insert: {
           agendamento_id?: string | null
+          clinica_id: string
           created_at?: string
           data?: string
           descricao?: string | null
           forma_pagamento?: string | null
           id?: string
-          paciente_id: string
+          paciente_id?: string | null
           status?: string
           tipo: string
           valor: number
         }
         Update: {
           agendamento_id?: string | null
+          clinica_id?: string
           created_at?: string
           data?: string
           descricao?: string | null
           forma_pagamento?: string | null
           id?: string
-          paciente_id?: string
+          paciente_id?: string | null
           status?: string
           tipo?: string
           valor?: number
@@ -976,6 +979,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_agenda"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinica"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "v_clinica_planos"
+            referencedColumns: ["clinica_id"]
           },
           {
             foreignKeyName: "transacoes_paciente_id_fkey"

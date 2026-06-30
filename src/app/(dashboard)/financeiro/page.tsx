@@ -28,6 +28,8 @@ type Entrada = {
   data: string | null
   valor: number | null
   status: string | null
+  tipo: string | null
+  agendamento_id: string | null
   paciente_nome: string | null
   paciente_iniciais: string | null
   paciente_cor: string | null
@@ -35,6 +37,9 @@ type Entrada = {
   agendamento_hora: string | null
   descricao: string | null
 }
+
+const ENTRADA_COLS =
+  'id, data, valor, status, tipo, agendamento_id, paciente_nome, paciente_iniciais, paciente_cor, tipo_consulta_nome, agendamento_hora, descricao'
 
 export default async function FinanceiroPage() {
   const user = await getCurrentUser()
@@ -47,23 +52,31 @@ export default async function FinanceiroPage() {
 
   // Carrega TODAS as entradas do mês (faturamento mensal) +
   // entradas pra montar gráfico (semana atual + semanas do mês)
-  const [{ data: entradasMes }, { data: recentes }] = await Promise.all([
+  const [{ data: entradasMes }, { data: despesasMesData }, { data: recentes }] = await Promise.all([
     supabase
       .from('v_financeiro_entradas')
-      .select('id, data, valor, status, paciente_nome, paciente_iniciais, paciente_cor, tipo_consulta_nome, agendamento_hora, descricao')
+      .select(ENTRADA_COLS)
       .eq('tipo', 'receita')
       .gte('data', iso(monthStart))
       .lte('data', iso(monthEnd))
       .order('data', { ascending: true }),
     supabase
       .from('v_financeiro_entradas')
-      .select('id, data, valor, status, paciente_nome, paciente_iniciais, paciente_cor, tipo_consulta_nome, agendamento_hora, descricao')
-      .eq('tipo', 'receita')
+      .select(ENTRADA_COLS)
+      .eq('tipo', 'despesa')
+      .gte('data', iso(monthStart))
+      .lte('data', iso(monthEnd))
+      .order('data', { ascending: true }),
+    supabase
+      .from('v_financeiro_entradas')
+      .select(ENTRADA_COLS)
       .order('data', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(8),
   ])
 
   const entradas: Entrada[] = (entradasMes ?? []) as Entrada[]
+  const despesasMes: Entrada[] = (despesasMesData ?? []) as Entrada[]
 
   // KPIs
   let faturamentoMensal = 0
@@ -75,6 +88,12 @@ export default async function FinanceiroPage() {
     faturamentoMensal += v
     if (e.status === 'pago') recebidoPago += v
     else if (e.status === 'pendente') aReceber += v
+  }
+
+  let despesasMensal = 0
+  for (const d of despesasMes) {
+    if (d.status === 'cancelado') continue
+    despesasMensal += Number(d.valor ?? 0)
   }
 
   // Série semanal: agrega valor pago por dia da semana atual (seg-dom)
@@ -106,6 +125,8 @@ export default async function FinanceiroPage() {
 
   const ultimasEntradas: EntradaRow[] = ((recentes ?? []) as Entrada[]).map((e) => ({
     id: e.id ?? '',
+    tipo: (e.tipo as 'receita' | 'despesa') ?? 'receita',
+    avulsa: !e.agendamento_id,
     paciente_nome: e.paciente_nome ?? '—',
     paciente_iniciais: e.paciente_iniciais ?? '—',
     paciente_cor: e.paciente_cor ?? '#9a8aa6',
@@ -121,6 +142,7 @@ export default async function FinanceiroPage() {
       faturamentoMensal={faturamentoMensal}
       recebidoPago={recebidoPago}
       aReceber={aReceber}
+      despesasMensal={despesasMensal}
       weekSerie={weekSerie}
       monthSerie={monthSerie}
       ultimasEntradas={ultimasEntradas}

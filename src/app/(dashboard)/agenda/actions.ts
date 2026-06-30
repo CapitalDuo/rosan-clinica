@@ -54,11 +54,19 @@ async function syncTransacao(
 
   const transacaoStatus = transacaoStatusFromAgendamento(status)
 
+  const { data: paciente } = await sb
+    .from('pacientes')
+    .select('clinica_id')
+    .eq('id', paciente_id)
+    .maybeSingle()
+  if (!paciente?.clinica_id) return
+
   if (existing) {
     await sb
       .from('transacoes')
       .update({
         paciente_id,
+        clinica_id: paciente.clinica_id,
         valor,
         status: transacaoStatus,
         data,
@@ -69,6 +77,7 @@ async function syncTransacao(
     await sb.from('transacoes').insert({
       agendamento_id,
       paciente_id,
+      clinica_id: paciente.clinica_id,
       tipo: 'receita',
       valor,
       status: transacaoStatus,
