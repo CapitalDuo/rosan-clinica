@@ -29,6 +29,14 @@ function ProntuarioIcon() {
   )
 }
 
+function PrescricoesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="M9 12h6m-3-3v6m-7 3h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
 export function PacienteTabs({ id }: { id: string }) {
   const pathname = usePathname()
   const base = `/pacientes/${id}`
@@ -37,12 +45,15 @@ export function PacienteTabs({ id }: { id: string }) {
     { label: 'Consultas', href: base, icon: <ConsultasIcon /> },
     { label: 'Dados', href: `${base}/editar`, icon: <DadosIcon /> },
     { label: 'Prontuário', href: `${base}/prontuario`, icon: <ProntuarioIcon /> },
+    { label: 'Prescrições', href: `${base}/prescricoes`, icon: <PrescricoesIcon /> },
   ]
 
   return (
     <div className="flex items-center gap-1.5 border-b border-border mb-7">
       {tabs.map((tab) => {
-        const active = pathname === tab.href
+        const active =
+          pathname === tab.href ||
+          (tab.href !== base && pathname.startsWith(tab.href + '/'))
         return (
           <Link
             key={tab.href}

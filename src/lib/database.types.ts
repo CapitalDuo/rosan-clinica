@@ -795,6 +795,83 @@ export type Database = {
           },
         ]
       }
+      prescricoes: {
+        Row: {
+          id: string
+          clinica_id: string
+          paciente_id: string
+          agendamento_id: string | null
+          profissional_id: string
+          diagnostico: string | null
+          medicamentos: Json
+          plano_tratamento: string | null
+          orientacoes: string | null
+          convenio: string | null
+          data_consulta: string
+          pdf_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinica_id: string
+          paciente_id: string
+          agendamento_id?: string | null
+          profissional_id: string
+          diagnostico?: string | null
+          medicamentos?: Json
+          plano_tratamento?: string | null
+          orientacoes?: string | null
+          convenio?: string | null
+          data_consulta?: string
+          pdf_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinica_id?: string
+          paciente_id?: string
+          agendamento_id?: string | null
+          profissional_id?: string
+          diagnostico?: string | null
+          medicamentos?: Json
+          plano_tratamento?: string | null
+          orientacoes?: string | null
+          convenio?: string | null
+          data_consulta?: string
+          pdf_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescricoes_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinica"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescricoes_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescricoes_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescricoes_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "profissionais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suporte_mensagens: {
         Row: {
           autor_id: string
