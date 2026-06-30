@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { DeletePrescricaoButton } from '@/components/delete-prescricao-button'
 
 type Med = { nome: string; dosagem: string; frequencia: string; duracao: string }
 
@@ -69,7 +70,12 @@ export default async function PrescricoesPage({
       ) : (
         <div className="flex flex-col gap-2.5">
           {prescricoes.map((p) => (
-            <PrescricaoItem key={p.id} p={p} profNome={profById.get(p.profissional_id) ?? null} />
+            <PrescricaoItem
+              key={p.id}
+              p={p}
+              pacienteId={id}
+              profNome={profById.get(p.profissional_id) ?? null}
+            />
           ))}
         </div>
       )}
@@ -77,7 +83,15 @@ export default async function PrescricoesPage({
   )
 }
 
-function PrescricaoItem({ p, profNome }: { p: Prescricao; profNome: string | null }) {
+function PrescricaoItem({
+  p,
+  pacienteId,
+  profNome,
+}: {
+  p: Prescricao
+  pacienteId: string
+  profNome: string | null
+}) {
   const meds = Array.isArray(p.medicamentos) ? p.medicamentos : []
   const medicamentosTexto =
     meds.length === 0
@@ -155,6 +169,7 @@ function PrescricaoItem({ p, profNome }: { p: Prescricao; profNome: string | nul
         ) : (
           <span className="text-[11px] text-muted">Sem PDF</span>
         )}
+        <DeletePrescricaoButton prescricaoId={p.id} pacienteId={pacienteId} />
       </div>
     </div>
   )
