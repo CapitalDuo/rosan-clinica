@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient, getProfissional } from '@/lib/supabase/server'
 import { WEEKDAY_KEYS } from '@/lib/weekdays'
+import { parseBrlInput } from '@/lib/currency'
 
 export async function updateClinicaAction(formData: FormData) {
   const supabase = await createClient()
@@ -12,6 +13,7 @@ export async function updateClinicaAction(formData: FormData) {
 
   const nome = String(formData.get('nome') ?? '').trim()
   const subtitulo = String(formData.get('subtitulo') ?? '').trim()
+  const descricao = String(formData.get('descricao') ?? '').trim()
   const cnpj = String(formData.get('cnpj') ?? '').trim()
   const telefone = String(formData.get('telefone') ?? '').trim()
   const email = String(formData.get('email') ?? '').trim()
@@ -42,6 +44,7 @@ export async function updateClinicaAction(formData: FormData) {
     .update({
       nome,
       subtitulo: subtitulo || null,
+      descricao: descricao || null,
       cnpj: cnpj || null,
       telefone: telefone || null,
       email: email || null,
@@ -267,6 +270,43 @@ export async function updateMeuPerfilAction(formData: FormData) {
     .eq('id', prof.id)
 
   if (error) return { ok: false as const, error: error.message }
+
+  revalidatePath('/configuracoes')
+  return { ok: true as const }
+}
+
+export async function updateServicosEConveniosAction(
+  servicos: { nome: string; valor: string }[],
+  convenios: { nome: string; valor: string }[],
+) {
+  const supabase = await createClient()
+  const { user, prof } = await getProfissional(supabase)
+  if (!user) return { ok: false as const, error: 'Não autenticado' }
+  if (!prof?.clinica_id) return { ok: false as const, error: 'Conta sem clínica vinculada' }
+
+  const servicosToSave = servicos
+    .filter((s) => s.nome.trim())
+    .map((s) => ({ clinica_id: prof.clinica_id!, nome: s.nome.trim(), valor: parseBrlInput(s.valor)?.valor ?? null }))
+
+  const conveniosToSave = convenios
+    .filter((c) => c.nome.trim())
+    .map((c) => ({ clinica_id: prof.clinica_id!, nome: c.nome.trim(), valor: parseBrlInput(c.valor)?.valor ?? null }))
+
+  const { error: delServError } = await supabase.from('clinica_servicos').delete().eq('clinica_id', prof.clinica_id)
+  if (delServError) return { ok: false as const, error: delServError.message }
+
+  if (servicosToSave.length > 0) {
+    const { error } = await supabase.from('clinica_servicos').insert(servicosToSave)
+    if (error) return { ok: false as const, error: error.message }
+  }
+
+  const { error: delConvError } = await supabase.from('clinica_convenios').delete().eq('clinica_id', prof.clinica_id)
+  if (delConvError) return { ok: false as const, error: delConvError.message }
+
+  if (conveniosToSave.length > 0) {
+    const { error } = await supabase.from('clinica_convenios').insert(conveniosToSave)
+    if (error) return { ok: false as const, error: error.message }
+  }
 
   revalidatePath('/configuracoes')
   return { ok: true as const }

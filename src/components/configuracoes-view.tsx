@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { isTrialAtivo, trialDiasRestantes } from '@/lib/plano'
+import { formatBrlPlain } from '@/lib/currency'
 import {
   updateClinicaAction,
   updateHorariosAction,
@@ -10,6 +11,7 @@ import {
   verificarStatusWhatsappAction,
   updateMeuPerfilAction,
   toggleNotificacaoAction,
+  updateServicosEConveniosAction,
   type NotificacaoTipo,
 } from '@/app/(dashboard)/configuracoes/actions'
 import { WalletIcon, HomeIcon, UserIcon, BellIcon, ClockIcon, ChatIcon } from '@/components/icons'
@@ -19,6 +21,7 @@ export type Clinica = {
   id: string
   nome: string
   subtitulo: string | null
+  descricao: string | null
   cnpj: string | null
   telefone: string | null
   email: string | null
@@ -50,6 +53,15 @@ export type HorarioRow = {
   intervalo_inicio: string | null
   intervalo_fim: string | null
 }
+
+export type ServicoRow = {
+  id: string
+  nome: string
+  valor: number | null
+  ativo: boolean
+}
+
+export type ConvenioRow = ServicoRow
 
 export type WhatsappInstancia = {
   id: string
@@ -89,6 +101,7 @@ const SECTION_ICONS = {
   notificacoes: <BellIcon className={ICON_CLS} />,
   horarios: <ClockIcon className={ICON_CLS} />,
   whatsapp: <ChatIcon className={ICON_CLS} />,
+  servicos: <WalletIcon className={ICON_CLS} />,
 }
 
 export function ConfiguracoesView({
@@ -97,18 +110,22 @@ export function ConfiguracoesView({
   whatsapp,
   profissional,
   notificacoes,
+  servicos,
+  convenios,
 }: {
   clinica: Clinica
   horarios: HorarioRow[]
   whatsapp: WhatsappInstancia
   profissional: Profissional
   notificacoes: Notificacoes
+  servicos: ServicoRow[]
+  convenios: ConvenioRow[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editKind = searchParams.get('edit')
 
-  function openEdit(kind: 'clinica' | 'horarios' | 'whatsapp' | 'meu-perfil') {
+  function openEdit(kind: 'clinica' | 'horarios' | 'whatsapp' | 'meu-perfil' | 'servicos') {
     const params = new URLSearchParams(searchParams.toString())
     params.set('edit', kind)
     router.push(`/configuracoes?${params.toString()}`)
@@ -144,6 +161,39 @@ export function ConfiguracoesView({
           <Row label="Localização"
             value={<a href={clinica.maps_url} target="_blank" rel="noopener noreferrer" className="text-[#5b4bd4] hover:underline text-sm">Ver no Google Maps →</a>} />
         )}
+        {clinica.descricao && (
+          <div className="py-4 border-b border-border last:border-0">
+            <div className="text-[14px] font-semibold text-text mb-1">Descrição</div>
+            <p className="text-sm text-muted whitespace-pre-line">{clinica.descricao}</p>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Serviços e Convênios" icon={SECTION_ICONS.servicos} onEdit={() => openEdit('servicos')}>
+        <div className="py-4">
+          <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2.5">Serviços prestados</div>
+          {servicos.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              {servicos.map((s) => (
+                <Row key={s.id} label={s.nome} value={s.valor != null ? `R$ ${s.valor.toFixed(2).replace('.', ',')}` : 'A combinar'} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted py-2">Nenhum serviço cadastrado.</p>
+          )}
+        </div>
+        <div className="py-4">
+          <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2.5">Planos e convênios aceitos</div>
+          {convenios.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              {convenios.map((c) => (
+                <Row key={c.id} label={c.nome} value={c.valor != null ? `R$ ${c.valor.toFixed(2).replace('.', ',')}` : '—'} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted py-2">Nenhum convênio cadastrado.</p>
+          )}
+        </div>
       </SectionCard>
 
       <SectionCard title="Meu Perfil" icon={SECTION_ICONS.perfil} onEdit={() => openEdit('meu-perfil')}>
@@ -204,6 +254,7 @@ export function ConfiguracoesView({
       {editKind === 'horarios' && <HorariosModal initial={horarios} onClose={closeModal} />}
       {editKind === 'whatsapp' && <WhatsappModal initial={whatsapp} onClose={closeModal} />}
       {editKind === 'meu-perfil' && <MeuPerfilModal profissional={profissional} onClose={closeModal} />}
+      {editKind === 'servicos' && <ServicosConveniosModal initialServicos={servicos} initialConvenios={convenios} onClose={closeModal} />}
     </div>
   )
 }
@@ -889,6 +940,16 @@ function ClinicaModal({ clinica, onClose }: { clinica: Clinica; onClose: () => v
           <Field label="E-mail" name="email" type="email" defaultValue={clinica.email ?? ''} placeholder="contato@clinica.com.br" full />
           <Field label="Endereço" name="endereco" defaultValue={clinica.endereco ?? ''} placeholder="Rua, número, bairro, cidade" full />
           <Field label="Link do Google Maps" name="maps_url" defaultValue={clinica.maps_url ?? ''} placeholder="https://maps.google.com/..." full />
+          <div className="col-span-1 sm:col-span-2">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 block">Descrição da clínica</label>
+            <textarea
+              name="descricao"
+              defaultValue={clinica.descricao ?? ''}
+              placeholder="Conte um pouco sobre a clínica: especialidades, diferenciais, público atendido..."
+              rows={4}
+              className="w-full px-4 py-3 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg resize-none"
+            />
+          </div>
         </div>
 
         {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
@@ -1201,6 +1262,135 @@ function MeuPerfilModal({ profissional, onClose }: { profissional: Profissional;
               className="w-full px-4 py-3 rounded-[13px] border border-border text-sm bg-bg text-muted cursor-not-allowed"
             />
             <p className="text-[10px] text-muted mt-1">Usado para login — fale com o admin para alterar.</p>
+          </div>
+        </div>
+
+        {error && <div className="text-xs text-red bg-red-light rounded-lg px-3 py-2 font-medium">{error}</div>}
+
+        <ModalFooter onClose={onClose} pending={pending} submitLabel="Salvar alterações" />
+      </form>
+    </ModalShell>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Serviços e Convênios modal
+// -----------------------------------------------------------------------------
+
+type ServicoInput = { nome: string; valor: string }
+
+function ServicosConveniosModal({
+  initialServicos,
+  initialConvenios,
+  onClose,
+}: {
+  initialServicos: ServicoRow[]
+  initialConvenios: ConvenioRow[]
+  onClose: () => void
+}) {
+  const router = useRouter()
+  const [servicos, setServicos] = useState<ServicoInput[]>(
+    initialServicos.length > 0
+      ? initialServicos.map((s) => ({ nome: s.nome, valor: formatBrlPlain(s.valor) }))
+      : [{ nome: '', valor: '' }],
+  )
+  const [convenios, setConvenios] = useState<ServicoInput[]>(
+    initialConvenios.length > 0
+      ? initialConvenios.map((c) => ({ nome: c.nome, valor: formatBrlPlain(c.valor) }))
+      : [{ nome: '', valor: '' }],
+  )
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEscClose(onClose)
+
+  function updateServico(i: number, field: keyof ServicoInput, value: string) {
+    setServicos((prev) => prev.map((s, j) => (j === i ? { ...s, [field]: value } : s)))
+  }
+  function updateConvenio(i: number, field: keyof ServicoInput, value: string) {
+    setConvenios((prev) => prev.map((c, j) => (j === i ? { ...c, [field]: value } : c)))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setPending(true)
+    setError(null)
+    const result = await updateServicosEConveniosAction(servicos, convenios)
+    if (!result.ok) {
+      setPending(false)
+      setError(result.error)
+      return
+    }
+    router.refresh()
+    onClose()
+  }
+
+  return (
+    <ModalShell title="Serviços e convênios" subtitle="Serviços prestados e planos aceitos pela clínica" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="px-7 py-6 flex flex-col gap-6">
+        <div>
+          <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2.5">Serviços prestados</div>
+          <div className="flex flex-col gap-2">
+            {servicos.map((s, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Ex: Consulta, Retorno, Limpeza..."
+                  value={s.nome}
+                  onChange={(e) => updateServico(i, 'nome', e.target.value)}
+                  className="flex-1 px-4 py-2.5 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
+                />
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs text-muted font-medium">R$</span>
+                  <input
+                    type="text"
+                    placeholder="0,00"
+                    value={s.valor}
+                    onChange={(e) => updateServico(i, 'valor', e.target.value)}
+                    className="w-20 px-3 py-2.5 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
+                  />
+                </div>
+                {servicos.length > 1 && (
+                  <button type="button" onClick={() => setServicos(servicos.filter((_, j) => j !== i))} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted hover:text-red hover:bg-red-light transition-colors cursor-pointer text-sm shrink-0">✕</button>
+                )}
+              </div>
+            ))}
+            <button type="button" onClick={() => setServicos([...servicos, { nome: '', valor: '' }])} className="text-xs text-[#5b4bd4] font-semibold hover:underline text-left cursor-pointer w-fit">
+              + Adicionar serviço
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2.5">Planos e convênios aceitos</div>
+          <div className="flex flex-col gap-2">
+            {convenios.map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Ex: Unimed, Bradesco Saúde, Particular..."
+                  value={c.nome}
+                  onChange={(e) => updateConvenio(i, 'nome', e.target.value)}
+                  className="flex-1 px-4 py-2.5 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
+                />
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs text-muted font-medium">R$</span>
+                  <input
+                    type="text"
+                    placeholder="0,00"
+                    value={c.valor}
+                    onChange={(e) => updateConvenio(i, 'valor', e.target.value)}
+                    className="w-20 px-3 py-2.5 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg"
+                  />
+                </div>
+                {convenios.length > 1 && (
+                  <button type="button" onClick={() => setConvenios(convenios.filter((_, j) => j !== i))} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted hover:text-red hover:bg-red-light transition-colors cursor-pointer text-sm shrink-0">✕</button>
+                )}
+              </div>
+            ))}
+            <button type="button" onClick={() => setConvenios([...convenios, { nome: '', valor: '' }])} className="text-xs text-[#5b4bd4] font-semibold hover:underline text-left cursor-pointer w-fit">
+              + Adicionar convênio
+            </button>
           </div>
         </div>
 

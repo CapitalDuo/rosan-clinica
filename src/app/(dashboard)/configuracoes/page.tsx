@@ -40,10 +40,10 @@ export default async function ConfiguracoesPage() {
     )
   }
 
-  const [{ data: clinica }, { data: horarios }, { data: whatsapp }, { data: notificacoes }] = await Promise.all([
+  const [{ data: clinica }, { data: horarios }, { data: whatsapp }, { data: notificacoes }, { data: servicos }, { data: convenios }] = await Promise.all([
     supabase
       .from('clinica')
-      .select('id, nome, subtitulo, cnpj, telefone, email, endereco, logo_url, maps_url, plano_slug, plano_status, plano_periodo_fim, plano_cancelando, trial_ends_at')
+      .select('id, nome, subtitulo, descricao, cnpj, telefone, email, endereco, logo_url, maps_url, plano_slug, plano_status, plano_periodo_fim, plano_cancelando, trial_ends_at')
       .eq('id', prof.clinica_id)
       .maybeSingle(),
     supabase
@@ -61,6 +61,16 @@ export default async function ConfiguracoesPage() {
       .from('notificacao_config')
       .select('tipo, ativo')
       .eq('clinica_id', prof.clinica_id),
+    supabase
+      .from('clinica_servicos')
+      .select('id, nome, valor, ativo')
+      .eq('clinica_id', prof.clinica_id)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('clinica_convenios')
+      .select('id, nome, valor, ativo')
+      .eq('clinica_id', prof.clinica_id)
+      .order('created_at', { ascending: true }),
   ])
 
   if (!clinica) {
@@ -113,6 +123,8 @@ export default async function ConfiguracoesPage() {
         role: prof.role,
       }}
       notificacoes={notif}
+      servicos={servicos ?? []}
+      convenios={convenios ?? []}
     />
     </>
   )

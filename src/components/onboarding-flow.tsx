@@ -34,7 +34,7 @@ function formatCNPJ(value: string): string {
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
 }
 
-interface ClinicData { telefone: string; cnpj: string; endereco: string; logo_url: string | null; maps_url: string }
+interface ClinicData { telefone: string; cnpj: string; endereco: string; logo_url: string | null; maps_url: string; descricao: string }
 interface MyProfile { especialidade: string; registro: string }
 interface Professional { nome: string; especialidade: string; registro: string }
 interface DaySchedule { aberto: boolean; inicio: string; fim: string; intervalo: boolean; intervalo_inicio: string; intervalo_fim: string }
@@ -272,6 +272,17 @@ export function OnboardingFlow({
               </div>
 
               <Field label="Endereço" placeholder="Rua, número, bairro, cidade" value={clinic.endereco} onChange={v => setClinic({ ...clinic, endereco: v })} />
+
+              <div>
+                <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 block">Descrição da clínica (opcional)</label>
+                <textarea
+                  placeholder="Conte um pouco sobre a clínica: especialidades, diferenciais, público atendido..."
+                  value={clinic.descricao}
+                  onChange={e => setClinic({ ...clinic, descricao: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-[13px] border border-border text-sm outline-none focus:border-[#5b4bd4] transition-colors bg-bg resize-none"
+                />
+              </div>
 
               <div>
                 <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 block">
@@ -523,6 +534,7 @@ export function OnboardingFlow({
                 {clinic.cnpj && <SummaryItem label="CNPJ" value={clinic.cnpj} />}
                 <SummaryItem label="Endereço" value={clinic.endereco || '—'} />
                 <SummaryItem label="Google Maps" value="Link configurado ✓" />
+                {clinic.descricao && <SummaryItem label="Descrição" value={clinic.descricao} />}
               </SummarySection>
 
               <SummarySection title="Profissionais">

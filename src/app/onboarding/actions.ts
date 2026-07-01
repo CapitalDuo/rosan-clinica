@@ -6,7 +6,7 @@ import { parseBrlInput } from '@/lib/currency'
 import { WEEKDAY_MAP } from '@/lib/weekdays'
 
 export type OnboardingPayload = {
-  clinic: { telefone: string; cnpj: string; endereco: string; logo_url?: string | null; maps_url?: string | null }
+  clinic: { telefone: string; cnpj: string; endereco: string; logo_url?: string | null; maps_url?: string | null; descricao?: string | null }
   myProfile: { especialidade: string; registro: string }
   additionalProfessionals: { nome: string; especialidade: string; registro: string }[]
   schedule: Record<string, { aberto: boolean; inicio: string; fim: string; intervalo: boolean; intervalo_inicio: string; intervalo_fim: string }>
@@ -34,6 +34,7 @@ export async function completeOnboarding(payload: OnboardingPayload) {
       endereco: payload.clinic.endereco || null,
       logo_url: payload.clinic.logo_url ?? null,
       maps_url: payload.clinic.maps_url || null,
+      descricao: payload.clinic.descricao || null,
       onboarding_completo: true,
       onboarding_step: 5,
     })
