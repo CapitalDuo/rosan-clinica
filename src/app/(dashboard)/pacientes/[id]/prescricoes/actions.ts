@@ -22,12 +22,11 @@ export async function excluirPrescricaoAction(
 
   if (!prescricao) return { ok: false, error: 'Prescrição não encontrada' }
 
-  // Remove o PDF do Storage se existir
+  // Remove o PDF do Storage se existir. pdf_url guarda o path do objeto;
+  // linhas criadas antes da migration podem ainda ter a URL pública antiga.
   if (prescricao.pdf_url) {
-    const match = prescricao.pdf_url.match(/\/storage\/v1\/object\/public\/prescricoes\/(.+)$/)
-    if (match?.[1]) {
-      await supabase.storage.from('prescricoes').remove([decodeURIComponent(match[1])])
-    }
+    const path = prescricao.pdf_url.replace(/^.*\/storage\/v1\/object\/public\/prescricoes\//, '')
+    await supabase.storage.from('prescricoes').remove([decodeURIComponent(path)])
   }
 
   const { error } = await supabase.from('prescricoes').delete().eq('id', prescricaoId)

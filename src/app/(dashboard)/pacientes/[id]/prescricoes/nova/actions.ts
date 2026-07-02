@@ -109,10 +109,8 @@ export async function criarPrescricaoAction(
             })
 
           if (upload && !uploadError) {
-            const { data: pub } = supabase.storage
-              .from('prescricoes')
-              .getPublicUrl(upload.path)
-            pdfUrl = pub.publicUrl
+            // Bucket privado: guarda o path; a URL assinada é gerada na exibição
+            pdfUrl = upload.path
           }
         }
       }

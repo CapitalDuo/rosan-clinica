@@ -42,6 +42,16 @@ export default async function PrescricoesPage({
 
   const prescricoes = (rows ?? []) as Prescricao[]
 
+  // Bucket privado: pdf_url guarda o path do objeto — gera URLs assinadas
+  // (120s) em lote pra esta página. RLS do Storage garante o escopo da clínica.
+  const pdfPaths = prescricoes.map((p) => p.pdf_url).filter((u): u is string => !!u)
+  const { data: signed } = pdfPaths.length
+    ? await supabase.storage.from('prescricoes').createSignedUrls(pdfPaths, 120)
+    : { data: null }
+  const signedByPath = new Map(
+    (signed ?? []).filter((s) => s.signedUrl).map((s) => [s.path, s.signedUrl]),
+  )
+
   const profIds = Array.from(new Set(prescricoes.map((p) => p.profissional_id)))
   const { data: profs } = profIds.length
     ? await supabase.from('profissionais').select('id, nome').in('id', profIds)
@@ -75,6 +85,7 @@ export default async function PrescricoesPage({
               p={p}
               pacienteId={id}
               profNome={profById.get(p.profissional_id) ?? null}
+              pdfHref={p.pdf_url ? signedByPath.get(p.pdf_url) ?? null : null}
             />
           ))}
         </div>
@@ -87,10 +98,12 @@ function PrescricaoItem({
   p,
   pacienteId,
   profNome,
+  pdfHref,
 }: {
   p: Prescricao
   pacienteId: string
   profNome: string | null
+  pdfHref: string | null
 }) {
   const meds = Array.isArray(p.medicamentos) ? p.medicamentos : []
   const medicamentosTexto =
@@ -144,9 +157,9 @@ function PrescricaoItem({
 
       {/* Ações */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {p.pdf_url ? (
+        {pdfHref ? (
           <a
-            href={p.pdf_url}
+            href={pdfHref}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-[10px] bg-[#eeeaf9] text-[#5b4bd4] hover:bg-[#5b4bd4] hover:text-white transition-colors"
