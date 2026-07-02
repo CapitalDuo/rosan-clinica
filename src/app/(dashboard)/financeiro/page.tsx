@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { FinanceiroView, type EntradaRow, type SeriePonto } from '@/components/financeiro-view'
+import { createClient, getProfissional } from '@/lib/supabase/server'
+import { FinanceiroView, type ContaAPagarRow, type EntradaRow, type SeriePonto } from '@/components/financeiro-view'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1)
@@ -41,18 +43,58 @@ type Entrada = {
 const ENTRADA_COLS =
   'id, data, valor, status, tipo, agendamento_id, paciente_nome, paciente_iniciais, paciente_cor, tipo_consulta_nome, agendamento_hora, descricao'
 
+/**
+ * Garante que as despesas fixas ativas da clínica tenham uma transação
+ * gerada pro mês corrente. Geração lazy (sem cron): roda a cada carregamento
+ * da página. upsert com ignoreDuplicates usa o índice único parcial
+ * (despesa_fixa_id, mes_referencia) — evita duplicar sob concorrência.
+ * ponytail: sem backfill de meses pulados; cobre-se manualmente com
+ * lançamento avulso se a clínica ficar sem abrir Financeiro num mês inteiro.
+ */
+async function gerarDespesasFixasDoMes(
+  supabase: SupabaseClient<Database>,
+  clinicaId: string,
+  monthStart: Date,
+) {
+  const { data: fixas } = await supabase
+    .from('despesas_fixas')
+    .select('id, nome, valor, dia_vencimento')
+    .eq('clinica_id', clinicaId)
+    .eq('ativo', true)
+
+  if (!fixas?.length) return
+
+  const rows = fixas.map((f) => ({
+    clinica_id: clinicaId,
+    despesa_fixa_id: f.id,
+    tipo: 'despesa' as const,
+    status: 'pendente' as const,
+    valor: f.valor,
+    descricao: f.nome,
+    data: iso(new Date(monthStart.getFullYear(), monthStart.getMonth(), f.dia_vencimento)),
+  }))
+
+  await supabase
+    .from('transacoes')
+    .upsert(rows, { onConflict: 'despesa_fixa_id,mes_referencia', ignoreDuplicates: true })
+}
+
 export default async function FinanceiroPage() {
-  const user = await getCurrentUser()
-  if (!user) redirect('/login')
   const supabase = await createClient()
+  const { user, prof } = await getProfissional(supabase)
+  if (!user) redirect('/login')
 
   const today = new Date()
   const monthStart = startOfMonth(today)
   const monthEnd = endOfMonth(today)
 
+  if (prof?.clinica_id) {
+    await gerarDespesasFixasDoMes(supabase, prof.clinica_id, monthStart)
+  }
+
   // Carrega TODAS as entradas do mês (faturamento mensal) +
-  // entradas pra montar gráfico (semana atual + semanas do mês)
-  const [{ data: entradasMes }, { data: despesasMesData }, { data: recentes }] = await Promise.all([
+  // entradas pra montar sparkline (semana atual) + contas a pagar
+  const [{ data: entradasMes }, { data: despesasMesData }, { data: recentes }, { data: contasAPagarData }] = await Promise.all([
     supabase
       .from('v_financeiro_entradas')
       .select(ENTRADA_COLS)
@@ -73,6 +115,16 @@ export default async function FinanceiroPage() {
       .order('data', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(8),
+    // Pendências de despesas fixas — inclui atrasadas de meses anteriores
+    // (sem filtro de início de período: senão uma pendência esquecida
+    // sumiria do radar assim que o mês virasse), exclui vencimentos futuros.
+    supabase
+      .from('transacoes')
+      .select('id, descricao, valor, data')
+      .not('despesa_fixa_id', 'is', null)
+      .eq('status', 'pendente')
+      .lte('data', iso(monthEnd))
+      .order('data', { ascending: true }),
   ])
 
   const entradas: Entrada[] = (entradasMes ?? []) as Entrada[]
@@ -109,19 +161,14 @@ export default async function FinanceiroPage() {
     if (idx >= 0) weekSerie[idx].valor += Number(e.valor ?? 0)
   }
 
-  // Série mensal: 4 semanas do mês atual (semana 1..4)
-  const monthSerie: SeriePonto[] = [
-    { label: 'Sem 1', valor: 0, data: '' },
-    { label: 'Sem 2', valor: 0, data: '' },
-    { label: 'Sem 3', valor: 0, data: '' },
-    { label: 'Sem 4', valor: 0, data: '' },
-  ]
-  for (const e of entradas) {
-    if (!e.data || e.status === 'cancelado') continue
-    const day = new Date(e.data + 'T00:00:00').getDate()
-    const week = Math.min(3, Math.floor((day - 1) / 7)) // 0..3
-    monthSerie[week].valor += Number(e.valor ?? 0)
-  }
+  const hojeISO = iso(today)
+  const contasAPagar: ContaAPagarRow[] = (contasAPagarData ?? []).map((c) => ({
+    id: c.id,
+    nome: c.descricao ?? '—',
+    valor: Number(c.valor ?? 0),
+    data: c.data,
+    vencida: c.data < hojeISO,
+  }))
 
   const ultimasEntradas: EntradaRow[] = ((recentes ?? []) as Entrada[]).map((e) => ({
     id: e.id ?? '',
@@ -144,7 +191,7 @@ export default async function FinanceiroPage() {
       aReceber={aReceber}
       despesasMensal={despesasMensal}
       weekSerie={weekSerie}
-      monthSerie={monthSerie}
+      contasAPagar={contasAPagar}
       ultimasEntradas={ultimasEntradas}
     />
   )

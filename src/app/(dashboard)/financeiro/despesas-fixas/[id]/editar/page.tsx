@@ -1,0 +1,30 @@
+import { notFound } from 'next/navigation'
+import { getDespesaFixaAction } from '../../actions'
+import { DespesaFixaForm } from '../../form'
+
+export default async function EditarDespesaFixaPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const result = await getDespesaFixaAction(id)
+  if (!result.ok) notFound()
+
+  return (
+    <div className="px-10 pt-7 pb-10 max-w-[640px]">
+      <div className="mb-7">
+        <h1 className="font-newsreader text-[28px] font-semibold tracking-tight leading-tight">
+          Editar despesa fixa
+        </h1>
+        <p className="text-sm text-muted mt-1">
+          Alterações no valor só valem a partir da próxima geração mensal.
+        </p>
+      </div>
+
+      <div className="bg-card border border-border rounded-[18px] p-7">
+        <DespesaFixaForm despesaFixa={result.despesaFixa} />
+      </div>
+    </div>
+  )
+}

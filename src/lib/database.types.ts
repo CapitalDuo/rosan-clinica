@@ -329,6 +329,57 @@ export type Database = {
           },
         ]
       }
+      despesas_fixas: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          clinica_id: string
+          created_at: string
+          dia_vencimento: number
+          id: string
+          nome: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string
+          clinica_id: string
+          created_at?: string
+          dia_vencimento: number
+          id?: string
+          nome: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          clinica_id?: string
+          created_at?: string
+          dia_vencimento?: number
+          id?: string
+          nome?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_fixas_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinica"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_fixas_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "v_clinica_planos"
+            referencedColumns: ["clinica_id"]
+          },
+        ]
+      }
       horarios_funcionamento: {
         Row: {
           aberto: boolean
@@ -938,8 +989,10 @@ export type Database = {
           created_at: string
           data: string
           descricao: string | null
+          despesa_fixa_id: string | null
           forma_pagamento: string | null
           id: string
+          mes_referencia: string | null
           paciente_id: string | null
           status: string
           tipo: string
@@ -951,8 +1004,10 @@ export type Database = {
           created_at?: string
           data?: string
           descricao?: string | null
+          despesa_fixa_id?: string | null
           forma_pagamento?: string | null
           id?: string
+          mes_referencia?: never
           paciente_id?: string | null
           status?: string
           tipo: string
@@ -964,8 +1019,10 @@ export type Database = {
           created_at?: string
           data?: string
           descricao?: string | null
+          despesa_fixa_id?: string | null
           forma_pagamento?: string | null
           id?: string
+          mes_referencia?: never
           paciente_id?: string | null
           status?: string
           tipo?: string
@@ -1019,6 +1076,13 @@ export type Database = {
             columns: ["paciente_id"]
             isOneToOne: false
             referencedRelation: "v_pacientes_tabela"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_despesa_fixa_id_fkey"
+            columns: ["despesa_fixa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_fixas"
             referencedColumns: ["id"]
           },
         ]

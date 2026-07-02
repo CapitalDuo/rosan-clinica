@@ -3,10 +3,18 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { formatBrl } from '@/lib/currency'
-import { excluirLancamentoAction } from '@/app/(dashboard)/financeiro/actions'
+import { formatBrl, formatBrlPlain, parseBrlInput } from '@/lib/currency'
+import { excluirLancamentoAction, pagarDespesaFixaAction } from '@/app/(dashboard)/financeiro/actions'
 
 export type SeriePonto = { label: string; valor: number; data: string }
+
+export type ContaAPagarRow = {
+  id: string
+  nome: string
+  valor: number
+  data: string
+  vencida: boolean
+}
 
 export type EntradaRow = {
   id: string
@@ -34,7 +42,7 @@ export function FinanceiroView({
   aReceber,
   despesasMensal,
   weekSerie,
-  monthSerie,
+  contasAPagar,
   ultimasEntradas,
 }: {
   faturamentoMensal: number
@@ -42,12 +50,9 @@ export function FinanceiroView({
   aReceber: number
   despesasMensal: number
   weekSerie: SeriePonto[]
-  monthSerie: SeriePonto[]
+  contasAPagar: ContaAPagarRow[]
   ultimasEntradas: EntradaRow[]
 }) {
-  const [periodo, setPeriodo] = useState<'semana' | 'mes'>('semana')
-  const serie = periodo === 'semana' ? weekSerie : monthSerie
-
   return (
     <div className="px-10 pt-7 pb-10">
       <div className="flex items-start justify-between mb-7 flex-wrap gap-4">
@@ -154,32 +159,7 @@ export function FinanceiroView({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
-        <div className="bg-card border border-border rounded-[14px] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-newsreader text-[20px] font-semibold tracking-tight">Evolução de Receita</h2>
-            <div className="flex rounded-[10px] border border-border bg-bg p-0.5">
-              <button
-                type="button"
-                onClick={() => setPeriodo('semana')}
-                className={`px-3 py-1 rounded-[8px] text-[12px] font-semibold transition-colors cursor-pointer ${
-                  periodo === 'semana' ? 'bg-[#f1eefb] text-[#5b4bd4]' : 'text-muted hover:text-text'
-                }`}
-              >
-                Semana
-              </button>
-              <button
-                type="button"
-                onClick={() => setPeriodo('mes')}
-                className={`px-3 py-1 rounded-[8px] text-[12px] font-semibold transition-colors cursor-pointer ${
-                  periodo === 'mes' ? 'bg-[#f1eefb] text-[#5b4bd4]' : 'text-muted hover:text-text'
-                }`}
-              >
-                Mês
-              </button>
-            </div>
-          </div>
-          <BarChart serie={serie} />
-        </div>
+        <ContasAPagarCard contas={contasAPagar} />
 
         <div className="bg-card border border-border rounded-[14px] p-6 flex flex-col">
           <div className="flex items-center justify-between mb-4">
@@ -270,139 +250,112 @@ function MiniSparkline({ serie, color }: { serie: SeriePonto[]; color: string })
   )
 }
 
-function calcNiceMax(max: number): number {
-  if (max <= 0) return 100
-  const mag = Math.pow(10, Math.floor(Math.log10(max)))
-  const frac = max / mag
-  const nice = frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10
-  return nice * mag
+function ContasAPagarCard({ contas }: { contas: ContaAPagarRow[] }) {
+  return (
+    <div className="bg-card border border-border rounded-[14px] p-6 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-newsreader text-[20px] font-semibold tracking-tight">Contas a pagar</h2>
+        <Link href="/financeiro/despesas-fixas" className="text-xs font-semibold text-[#5b4bd4] hover:underline">
+          Gerenciar →
+        </Link>
+      </div>
+      <div className="flex flex-col gap-1 flex-1">
+        {contas.length === 0 ? (
+          <div className="text-center text-sm text-muted py-8 flex-1 flex flex-col items-center justify-center gap-3">
+            <span>Nenhuma despesa fixa cadastrada.</span>
+            <Link
+              href="/financeiro/despesas-fixas/nova"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-text text-white rounded-[11px] text-xs font-semibold hover:bg-[#333] transition-colors"
+            >
+              + Cadastrar despesa fixa
+            </Link>
+          </div>
+        ) : (
+          contas.map((c) => <ContaAPagarItem key={c.id} conta={c} />)
+        )}
+      </div>
+    </div>
+  )
 }
 
-function fmtY(v: number): string {
-  if (v >= 1000) return `${Math.round(v / 1000)}k`
-  return String(Math.round(v))
+function ContaAPagarItem({ conta }: { conta: ContaAPagarRow }) {
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+      <div className="flex-1 min-w-0">
+        <div className="text-[14px] font-semibold text-text truncate">{conta.nome}</div>
+        <div className={`text-[11.5px] truncate ${conta.vencida ? 'text-red font-semibold' : 'text-muted'}`}>
+          {conta.vencida ? 'Venceu em ' : 'Vence em '}
+          {formatEntradaDate(conta.data)}
+        </div>
+      </div>
+      <PagarDespesaButton transacaoId={conta.id} valorSugerido={conta.valor} />
+    </div>
+  )
 }
 
-function BarChart({ serie }: { serie: SeriePonto[] }) {
-  const [hovered, setHovered] = useState<number | null>(null)
+function PagarDespesaButton({ transacaoId, valorSugerido }: { transacaoId: string; valorSugerido: number }) {
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [valor, setValor] = useState(formatBrlPlain(valorSugerido))
+  const [isPending, startTransition] = useTransition()
 
-  const W = 600
-  const H = 260
-  const PL = 42
-  const PR = 12
-  const PT = 16
-  const PB = 32
+  function handleConfirm() {
+    const parsed = parseBrlInput(valor)
+    if (!parsed || parsed.valor <= 0) return
+    const formData = new FormData()
+    formData.set('valor', valor)
+    startTransition(async () => {
+      await pagarDespesaFixaAction(transacaoId, formData)
+      setEditing(false)
+      router.refresh()
+    })
+  }
 
-  const max = Math.max(1, ...serie.map((s) => s.valor))
-  const niceMax = calcNiceMax(max)
-  const chartW = W - PL - PR
-  const chartH = H - PT - PB
-
-  const slotW = chartW / Math.max(1, serie.length)
-  const barW = slotW * 0.55
-  const barOff = (slotW - barW) / 2
-
-  const bars = serie.map((s, i) => {
-    const bh = Math.max(2, (s.valor / niceMax) * chartH)
-    const x = PL + i * slotW + barOff
-    const y = PT + chartH - bh
-    const prev = serie[i - 1]
-    const pct = prev && prev.valor > 0 ? ((s.valor - prev.valor) / prev.valor) * 100 : null
-    return { x, y, bh, cx: x + barW / 2, label: s.label, valor: s.valor, pct }
-  })
-
-  const ticks = 4
-  const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
-    const v = (niceMax / ticks) * i
-    return { v, y: PT + chartH - (v / niceMax) * chartH }
-  })
-
-  const GREEN = '#2fb98a'
-  const GOLD = '#f5a623'
+  if (!editing) {
+    return (
+      <div className="text-right flex-shrink-0">
+        <div className="text-[14px] font-bold text-text mb-1">{formatBrl(valorSugerido)}</div>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-[8px] bg-green-light text-green hover:bg-green hover:text-white transition-colors cursor-pointer"
+        >
+          Marcar como pago
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-auto"
-      preserveAspectRatio="xMidYMid meet"
-      onMouseLeave={() => setHovered(null)}
-    >
-      {/* Grid + Y labels */}
-      {yTicks.map((t, i) => (
-        <g key={i}>
-          <line x1={PL} x2={W - PR} y1={t.y} y2={t.y}
-            stroke="#ecebe8" strokeWidth="1"
-            strokeDasharray={i === 0 ? '' : '3 4'} />
-          <text x={PL - 6} y={t.y + 4} textAnchor="end"
-            style={{ fontSize: 10, fill: '#9b978e' }}>
-            {fmtY(t.v)}
-          </text>
-        </g>
-      ))}
-
-      {/* Bars */}
-      {bars.map((b, i) => {
-        const isHov = hovered === i
-        return (
-          <g key={i} onMouseEnter={() => setHovered(i)} style={{ cursor: 'default' }}>
-            {/* invisible hit area */}
-            <rect x={PL + i * slotW} y={PT} width={slotW} height={chartH} fill="transparent" />
-            {/* bar */}
-            <rect x={b.x} y={b.y} width={barW} height={b.bh} rx={5}
-              fill={isHov ? GOLD : GREEN}
-              style={{ transition: 'fill 0.12s' }} />
-            {/* dashed line + dot on hover */}
-            {isHov && (
-              <>
-                <line x1={b.cx} y1={PT} x2={b.cx} y2={b.y}
-                  stroke="white" strokeWidth="1.5" strokeDasharray="3 3" />
-                <circle cx={b.cx} cy={b.y} r="5" fill="white" stroke={GOLD} strokeWidth="2" />
-              </>
-            )}
-            {/* X label — bold when hovered */}
-            <text x={b.cx} y={H - 8} textAnchor="middle"
-              style={{ fontSize: 11, fill: isHov ? '#1a1a1a' : '#9b978e', fontWeight: isHov ? 600 : 400 }}>
-              {b.label}
-            </text>
-          </g>
-        )
-      })}
-
-      {/* Tooltip */}
-      {hovered !== null && (() => {
-        const b = bars[hovered]
-        const TW = 138; const TH = 62; const R = 10
-        let tx = b.cx - TW / 2
-        if (tx < PL) tx = PL
-        if (tx + TW > W - PR) tx = W - PR - TW
-        const ty = Math.max(PT + 4, b.y - TH - 14)
-
-        return (
-          <g style={{ pointerEvents: 'none' }}>
-            <rect x={tx} y={ty} width={TW} height={TH} rx={R}
-              fill="white" style={{ filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.13))' }} />
-            {/* Month label */}
-            <text x={tx + 12} y={ty + 20}
-              style={{ fontSize: 12, fontWeight: 600, fill: '#1a1a1a' }}>
-              {b.label}
-            </text>
-            {/* Dot + value */}
-            <circle cx={tx + 14} cy={ty + 40} r={4} fill={GOLD} />
-            <text x={tx + 24} y={ty + 45}
-              style={{ fontSize: 13, fontWeight: 700, fill: '#1a1a1a' }}>
-              {formatBrl(b.valor)}
-            </text>
-            {/* % change */}
-            {b.pct !== null && (
-              <text x={tx + TW - 10} y={ty + 45} textAnchor="end"
-                style={{ fontSize: 12, fontWeight: 600, fill: b.pct >= 0 ? GREEN : '#e53e3e' }}>
-                {b.pct >= 0 ? '↗' : '↘'} {Math.abs(Math.round(b.pct))}%
-              </text>
-            )}
-          </g>
-        )
-      })()}
-    </svg>
+    <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="relative">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-muted pointer-events-none">R$</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          className="w-24 pl-7 pr-2 py-1.5 rounded-[8px] border border-border text-[12px] outline-none focus:border-[#5b4bd4]"
+          autoFocus
+        />
+      </div>
+      <button
+        type="button"
+        onClick={handleConfirm}
+        disabled={isPending}
+        className="text-[11px] font-semibold px-2.5 py-1.5 rounded-[8px] bg-green text-white hover:bg-green/90 transition-colors cursor-pointer disabled:opacity-50"
+      >
+        {isPending ? '...' : 'Confirmar'}
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(false)}
+        disabled={isPending}
+        className="text-[11px] font-semibold px-2 py-1.5 rounded-[8px] bg-bg text-muted hover:text-text transition-colors cursor-pointer border border-border"
+      >
+        ×
+      </button>
+    </div>
   )
 }
 

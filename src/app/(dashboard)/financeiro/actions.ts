@@ -62,3 +62,32 @@ export async function excluirLancamentoAction(
   revalidatePath('/financeiro')
   return { ok: true }
 }
+
+export async function pagarDespesaFixaAction(
+  transacaoId: string,
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Não autenticado' }
+
+  const valorRaw = String(formData.get('valor') ?? '').trim()
+  const parsed = parseBrlInput(valorRaw)
+  if (!parsed || parsed.valor <= 0) return { ok: false, error: 'Valor inválido' }
+
+  // Guard despesa_fixa_id IS NOT NULL: impede que essa action seja usada
+  // pra editar valor/status de um lançamento avulso qualquer.
+  const { error } = await supabase
+    .from('transacoes')
+    .update({ status: 'pago', valor: parsed.valor })
+    .eq('id', transacaoId)
+    .not('despesa_fixa_id', 'is', null)
+
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/financeiro')
+  return { ok: true }
+}
